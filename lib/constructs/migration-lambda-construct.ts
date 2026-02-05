@@ -81,11 +81,17 @@ export class MigrationLambdaConstruct extends Construct {
     // Grant read access to data bucket
     props.dataBucket.grantRead(this.migrationFunction);
 
-    // Grant IAM permissions to access OpenSearch Serverless
+    // Grant specific IAM permissions to access OpenSearch Serverless
+    // Using least-privilege principle instead of aoss:APIAccessAll
     this.migrationFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
-        actions: ['aoss:APIAccessAll'],
+        actions: [
+          'aoss:WriteDocument',
+          'aoss:ReadDocument',
+          'aoss:UpdateIndex',
+          'aoss:DescribeIndex',
+        ],
         resources: [props.opensearchCollectionArn],
       })
     );

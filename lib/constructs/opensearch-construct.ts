@@ -117,11 +117,18 @@ export class OpenSearchConstruct extends Construct {
       },
     });
 
-    // Grant init Lambda IAM permissions to access OpenSearch Serverless
+    // Grant specific IAM permissions to access OpenSearch Serverless
+    // Using least-privilege principle instead of aoss:APIAccessAll
     this.initFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
-        actions: ['aoss:APIAccessAll'],
+        actions: [
+          'aoss:CreateIndex',
+          'aoss:WriteDocument',
+          'aoss:ReadDocument',
+          'aoss:UpdateIndex',
+          'aoss:DescribeIndex',
+        ],
         resources: [this.collectionArn],
       })
     );
