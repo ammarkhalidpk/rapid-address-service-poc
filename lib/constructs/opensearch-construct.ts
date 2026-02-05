@@ -123,15 +123,52 @@ export class OpenSearchConstruct extends Construct {
   }
 
   /**
-   * Create data access policy for Lambda role
-   * Must be called after Lambda functions are created to get the role ARN
+   * Create data access policies for Lambda roles
+   * Creates TWO separate policies following least privilege principle:
+   * 1. Read-only policy for PAF Lambda (public-facing API)
+   * 2. Read-write policy for Init Lambda (index initialization)
+   *
+   * Must be called after Lambda functions are created to get the role ARNs
    */
-  public createDataAccessPolicy(lambdaRoleArn: string, initLambdaRoleArn: string): void {
-    const dataAccessPolicy = new opensearchserverless.CfnAccessPolicy(
+  public createDataAccessPolicy(pafLambdaRoleArn: string, initLambdaRoleArn: string): void {
+    // 1. Read-Only Policy for PAF Lambda (public-facing API)
+    const readOnlyPolicy = new opensearchserverless.CfnAccessPolicy(
       this,
-      'DataAccessPolicy',
+      'ReadOnlyDataAccessPolicy',
       {
-        name: `${this.collectionName}-data-access`,
+        name: `${this.collectionName}-read-only`,
+        type: 'data',
+        policy: JSON.stringify([
+          {
+            Rules: [
+              {
+                ResourceType: 'collection',
+                Resource: [`collection/${this.collectionName}`],
+                Permission: [
+                  'aoss:DescribeCollectionItems',
+                ],
+              },
+              {
+                ResourceType: 'index',
+                Resource: [`index/${this.collectionName}/*`],
+                Permission: [
+                  'aoss:DescribeIndex',
+                  'aoss:ReadDocument',
+                ],
+              },
+            ],
+            Principal: [pafLambdaRoleArn],
+          },
+        ]),
+      }
+    );
+
+    // 2. Read-Write Policy for Init Lambda (index initialization)
+    const readWritePolicy = new opensearchserverless.CfnAccessPolicy(
+      this,
+      'ReadWriteDataAccessPolicy',
+      {
+        name: `${this.collectionName}-read-write`,
         type: 'data',
         policy: JSON.stringify([
           {
@@ -157,13 +194,14 @@ export class OpenSearchConstruct extends Construct {
                 ],
               },
             ],
-            Principal: [lambdaRoleArn, initLambdaRoleArn],
+            Principal: [initLambdaRoleArn],
           },
         ]),
       }
     );
 
-    // Data access policy depends on the collection
-    dataAccessPolicy.node.addDependency(this.collection);
+    // Data access policies depend on the collection
+    readOnlyPolicy.node.addDependency(this.collection);
+    readWritePolicy.node.addDependency(this.collection);
   }
 }

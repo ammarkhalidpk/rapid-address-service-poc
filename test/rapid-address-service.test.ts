@@ -328,11 +328,60 @@ describe('RapidAddressServiceStack', () => {
       });
     });
 
-    test('Data access policy is created', () => {
+    test('Read-only data access policy is created for PAF Lambda', () => {
       template.hasResourceProperties('AWS::OpenSearchServerless::AccessPolicy', {
         Type: 'data',
-        Name: 'rapid-address-test-paf-data-access',
+        Name: 'rapid-address-test-paf-read-only',
       });
+    });
+
+    test('Read-write data access policy is created for Init Lambda', () => {
+      template.hasResourceProperties('AWS::OpenSearchServerless::AccessPolicy', {
+        Type: 'data',
+        Name: 'rapid-address-test-paf-read-write',
+      });
+    });
+
+    test('Two separate data access policies are created', () => {
+      const policies = template.findResources('AWS::OpenSearchServerless::AccessPolicy');
+      const dataPolicies = Object.values(policies).filter(
+        (policy: any) => policy.Properties.Type === 'data'
+      );
+      expect(dataPolicies.length).toBe(2);
+    });
+
+    test('Read-only policy structure is correct', () => {
+      // Verify read-only policy exists and has policy document
+      template.hasResourceProperties('AWS::OpenSearchServerless::AccessPolicy', {
+        Name: 'rapid-address-test-paf-read-only',
+        Type: 'data',
+      });
+
+      // Get the actual policy to verify it has a Policy property
+      const policies = template.findResources('AWS::OpenSearchServerless::AccessPolicy');
+      const readOnlyPolicy = Object.values(policies).find(
+        (policy: any) => policy.Properties.Name === 'rapid-address-test-paf-read-only'
+      ) as any;
+
+      expect(readOnlyPolicy).toBeDefined();
+      expect(readOnlyPolicy.Properties.Policy).toBeDefined();
+    });
+
+    test('Read-write policy structure is correct', () => {
+      // Verify read-write policy exists and has policy document
+      template.hasResourceProperties('AWS::OpenSearchServerless::AccessPolicy', {
+        Name: 'rapid-address-test-paf-read-write',
+        Type: 'data',
+      });
+
+      // Get the actual policy to verify it has a Policy property
+      const policies = template.findResources('AWS::OpenSearchServerless::AccessPolicy');
+      const readWritePolicy = Object.values(policies).find(
+        (policy: any) => policy.Properties.Name === 'rapid-address-test-paf-read-write'
+      ) as any;
+
+      expect(readWritePolicy).toBeDefined();
+      expect(readWritePolicy.Properties.Policy).toBeDefined();
     });
 
     test('OpenSearch init Lambda function is created', () => {
