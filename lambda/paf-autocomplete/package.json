@@ -1,0 +1,9 @@
+{
+  "name": "paf-autocomplete",
+  "version": "1.0.0",
+  "description": "PAF Autocomplete Lambda Function",
+  "main": "index.ts",
+  "dependencies": {
+    "@types/aws-lambda": "^8.10.145"
+  }
+}

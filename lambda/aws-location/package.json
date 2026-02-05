@@ -1,0 +1,9 @@
+{
+  "name": "aws-location-autocomplete",
+  "version": "1.0.0",
+  "description": "AWS Location Service Autocomplete Lambda Function",
+  "main": "index.ts",
+  "dependencies": {
+    "@types/aws-lambda": "^8.10.145"
+  }
+}
