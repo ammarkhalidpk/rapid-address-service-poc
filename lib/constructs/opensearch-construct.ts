@@ -134,13 +134,18 @@ export class OpenSearchConstruct extends Construct {
 
   /**
    * Create data access policies for Lambda roles
-   * Creates TWO separate policies following least privilege principle:
+   * Creates THREE separate policies following least privilege principle:
    * 1. Read-only policy for PAF Lambda (public-facing API)
    * 2. Read-write policy for Init Lambda (index initialization)
+   * 3. Read-write policy for Migration Lambda (data migration)
    *
    * Must be called after Lambda functions are created to get the role ARNs
    */
-  public createDataAccessPolicy(pafLambdaRoleArn: string, initLambdaRoleArn: string): void {
+  public createDataAccessPolicy(
+    pafLambdaRoleArn: string,
+    initLambdaRoleArn: string,
+    migrationLambdaRoleArn: string
+  ): void {
     // 1. Read-Only Policy for PAF Lambda (public-facing API)
     const readOnlyPolicy = new opensearchserverless.CfnAccessPolicy(
       this,
@@ -210,8 +215,44 @@ export class OpenSearchConstruct extends Construct {
       }
     );
 
+    // 3. Read-Write Policy for Migration Lambda (data migration)
+    const migrationPolicy = new opensearchserverless.CfnAccessPolicy(
+      this,
+      'MigrationDataAccessPolicy',
+      {
+        name: `${this.collectionName}-migration`,
+        type: 'data',
+        policy: JSON.stringify([
+          {
+            Rules: [
+              {
+                ResourceType: 'collection',
+                Resource: [`collection/${this.collectionName}`],
+                Permission: [
+                  'aoss:UpdateCollectionItems',
+                  'aoss:DescribeCollectionItems',
+                ],
+              },
+              {
+                ResourceType: 'index',
+                Resource: [`index/${this.collectionName}/*`],
+                Permission: [
+                  'aoss:DescribeIndex',
+                  'aoss:ReadDocument',
+                  'aoss:WriteDocument',
+                  'aoss:UpdateIndex',
+                ],
+              },
+            ],
+            Principal: [migrationLambdaRoleArn],
+          },
+        ]),
+      }
+    );
+
     // Data access policies depend on the collection
     readOnlyPolicy.node.addDependency(this.collection);
     readWritePolicy.node.addDependency(this.collection);
+    migrationPolicy.node.addDependency(this.collection);
   }
 }

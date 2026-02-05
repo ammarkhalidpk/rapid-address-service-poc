@@ -341,12 +341,12 @@ describe('RapidAddressServiceStack', () => {
       });
     });
 
-    test('Two separate data access policies are created', () => {
+    test('Three separate data access policies are created', () => {
       const policies = template.findResources('AWS::OpenSearchServerless::AccessPolicy');
       const dataPolicies = Object.values(policies).filter(
         (policy: any) => policy.Properties.Type === 'data'
       );
-      expect(dataPolicies.length).toBe(2);
+      expect(dataPolicies.length).toBe(3);
     });
 
     test('Read-only policy structure is correct', () => {
@@ -393,6 +393,34 @@ describe('RapidAddressServiceStack', () => {
       });
     });
 
+    test('Migration Lambda function is created with correct configuration', () => {
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        FunctionName: 'rapid-address-test-data-migration',
+        Description: 'Migrate PAF addresses from SQLite to OpenSearch Serverless',
+        Runtime: 'nodejs20.x',
+        MemorySize: 1024,
+        Timeout: 900,
+        EphemeralStorage: {
+          Size: 10240, // 10GB in MB
+        },
+      });
+    });
+
+    test('Migration policy structure is correct', () => {
+      template.hasResourceProperties('AWS::OpenSearchServerless::AccessPolicy', {
+        Name: 'rapid-address-test-paf-migration',
+        Type: 'data',
+      });
+
+      const policies = template.findResources('AWS::OpenSearchServerless::AccessPolicy');
+      const migrationPolicy = Object.values(policies).find(
+        (policy: any) => policy.Properties.Name === 'rapid-address-test-paf-migration'
+      ) as any;
+
+      expect(migrationPolicy).toBeDefined();
+      expect(migrationPolicy.Properties.Policy).toBeDefined();
+    });
+
     test('Lambda functions have OpenSearch environment variables', () => {
       const envCapture = new Capture();
       template.hasResourceProperties('AWS::Lambda::Function', {
@@ -420,11 +448,50 @@ describe('RapidAddressServiceStack', () => {
     });
   });
 
+  describe('Data Bucket', () => {
+    test('S3 bucket for migration data is created', () => {
+      template.hasResourceProperties('AWS::S3::Bucket', {
+        BucketName: 'rapid-address-test-data',
+        PublicAccessBlockConfiguration: {
+          BlockPublicAcls: true,
+          BlockPublicPolicy: true,
+          IgnorePublicAcls: true,
+          RestrictPublicBuckets: true,
+        },
+      });
+    });
+
+    test('S3 bucket has lifecycle rules', () => {
+      const buckets = template.findResources('AWS::S3::Bucket');
+      const dataBucket = Object.values(buckets).find(
+        (bucket: any) => bucket.Properties.BucketName === 'rapid-address-test-data'
+      ) as any;
+
+      expect(dataBucket).toBeDefined();
+      expect(dataBucket.Properties.LifecycleConfiguration).toBeDefined();
+      expect(dataBucket.Properties.LifecycleConfiguration.Rules).toBeDefined();
+      expect(dataBucket.Properties.LifecycleConfiguration.Rules.length).toBeGreaterThan(0);
+    });
+
+    test('Migration Lambda has S3 read permissions', () => {
+      const policies = template.findResources('AWS::IAM::Policy');
+      const policyValues = Object.values(policies);
+      const hasS3Permission = policyValues.some((policy: any) => {
+        const statements = policy.Properties?.PolicyDocument?.Statement || [];
+        return statements.some((stmt: any) => {
+          const actions = Array.isArray(stmt.Action) ? stmt.Action : [stmt.Action];
+          return actions.some((action: string) => action?.includes('s3:GetObject')) && stmt.Effect === 'Allow';
+        });
+      });
+      expect(hasS3Permission).toBe(true);
+    });
+  });
+
   describe('Resource Counts', () => {
     test('Correct number of Lambda functions created', () => {
-      // 2 main Lambda functions + 1 OpenSearch init Lambda + log retention functions
+      // 2 main Lambda functions + 1 OpenSearch init Lambda + 1 migration Lambda + log retention functions
       const lambdaCount = Object.keys(template.findResources('AWS::Lambda::Function')).length;
-      expect(lambdaCount).toBeGreaterThanOrEqual(3);
+      expect(lambdaCount).toBeGreaterThanOrEqual(4);
     });
 
     test('Correct number of API Gateway resources created', () => {

@@ -4,6 +4,8 @@ import { LambdaConstruct } from './constructs/lambda-construct';
 import { ApiConstruct } from './constructs/api-construct';
 import { FrontendConstruct } from './constructs/frontend-construct';
 import { OpenSearchConstruct } from './constructs/opensearch-construct';
+import { DataBucketConstruct } from './constructs/data-bucket-construct';
+import { MigrationLambdaConstruct } from './constructs/migration-lambda-construct';
 
 export interface RapidAddressServiceStackProps extends StackProps {
   readonly environment: string;
@@ -32,6 +34,23 @@ export class RapidAddressServiceStack extends Stack {
       environment: props.environment,
     });
 
+    // Create S3 bucket for migration data
+    const dataBucketConstruct = new DataBucketConstruct(this, 'DataBucketConstruct', {
+      environment: props.environment,
+    });
+
+    // Create Migration Lambda function
+    const migrationLambdaConstruct = new MigrationLambdaConstruct(
+      this,
+      'MigrationLambdaConstruct',
+      {
+        environment: props.environment,
+        opensearchCollectionEndpoint: opensearchConstruct.collectionEndpoint,
+        opensearchCollectionArn: opensearchConstruct.collectionArn,
+        dataBucket: dataBucketConstruct.bucket,
+      }
+    );
+
     // Create Lambda functions with OpenSearch integration
     const lambdaConstruct = new LambdaConstruct(this, 'LambdaConstruct', {
       environment: props.environment,
@@ -54,7 +73,8 @@ export class RapidAddressServiceStack extends Stack {
     // Create data access policy for Lambda roles to access OpenSearch
     opensearchConstruct.createDataAccessPolicy(
       lambdaConstruct.pafFunction.role!.roleArn,
-      opensearchConstruct.initFunction.role!.roleArn
+      opensearchConstruct.initFunction.role!.roleArn,
+      migrationLambdaConstruct.migrationFunction.role!.roleArn
     );
 
     // Stack Outputs
@@ -140,6 +160,18 @@ export class RapidAddressServiceStack extends Stack {
       value: opensearchConstruct.initFunction.functionName,
       description: 'OpenSearch initialization Lambda function name',
       exportName: `${props.environment}-OpenSearchInitFunctionName`,
+    });
+
+    new CfnOutput(this, 'DataBucketName', {
+      value: dataBucketConstruct.bucket.bucketName,
+      description: 'S3 bucket for migration data',
+      exportName: `${props.environment}-DataBucketName`,
+    });
+
+    new CfnOutput(this, 'MigrationFunctionName', {
+      value: migrationLambdaConstruct.migrationFunction.functionName,
+      description: 'Data migration Lambda function name',
+      exportName: `${props.environment}-MigrationFunctionName`,
     });
   }
 }

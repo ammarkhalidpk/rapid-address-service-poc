@@ -16,6 +16,7 @@
     "destroy": "cdk destroy"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
     "@types/jest": "^29.5.12",
     "@types/node": "20.11.19",
     "aws-cdk": "^2.234.0",
@@ -25,10 +26,12 @@
     "typescript": "~5.3.3"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.972.5",
     "@aws-sdk/credential-provider-node": "^3.972.5",
     "@aws-solutions-constructs/aws-cloudfront-s3": "^2.98.0",
     "@opensearch-project/opensearch": "^3.5.1",
     "aws-cdk-lib": "^2.234.0",
+    "better-sqlite3": "^11.7.0",
     "constructs": "^10.0.0",
     "source-map-support": "^0.5.21"
   }
