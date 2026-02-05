@@ -27,7 +27,7 @@ export class FrontendConstruct extends Construct {
     // Use AWS Solutions Construct for CloudFront + S3 pattern
     const cloudfrontToS3 = new CloudFrontToS3(this, 'CloudFrontToS3', {
       bucketProps: {
-        bucketName: `rapid-address-${props.environment}-frontend`,
+        // Let CDK auto-generate bucket name to avoid conflicts
         versioned: false,
         encryption: s3.BucketEncryption.S3_MANAGED,
         blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,

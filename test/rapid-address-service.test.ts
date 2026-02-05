@@ -138,7 +138,6 @@ describe('RapidAddressServiceStack', () => {
   describe('Frontend (S3 + CloudFront)', () => {
     test('S3 bucket is created with correct configuration', () => {
       template.hasResourceProperties('AWS::S3::Bucket', {
-        BucketName: 'rapid-address-test-frontend',
         BucketEncryption: {
           ServerSideEncryptionConfiguration: [
             {

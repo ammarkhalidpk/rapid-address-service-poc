@@ -2,6 +2,7 @@ import { Construct } from 'constructs';
 import * as opensearchserverless from 'aws-cdk-lib/aws-opensearchserverless';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import { Duration, Tags } from 'aws-cdk-lib';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as path from 'path';
@@ -115,6 +116,15 @@ export class OpenSearchConstruct extends Construct {
         sourceMap: true,
       },
     });
+
+    // Grant init Lambda IAM permissions to access OpenSearch Serverless
+    this.initFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['aoss:APIAccessAll'],
+        resources: [this.collectionArn],
+      })
+    );
 
     // Add tags
     Tags.of(this.collection).add('Environment', props.environment);
