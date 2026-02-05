@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import { LambdaConstruct } from './constructs/lambda-construct';
 import { ApiConstruct } from './constructs/api-construct';
 import { FrontendConstruct } from './constructs/frontend-construct';
+import { OpenSearchConstruct } from './constructs/opensearch-construct';
 
 export interface RapidAddressServiceStackProps extends StackProps {
   readonly environment: string;
@@ -26,9 +27,16 @@ export class RapidAddressServiceStack extends Stack {
     Tags.of(this).add('ManagedBy', 'CDK');
     Tags.of(this).add('Purpose', 'POC');
 
-    // Create Lambda functions
+    // Create OpenSearch Serverless Collection
+    const opensearchConstruct = new OpenSearchConstruct(this, 'OpenSearchConstruct', {
+      environment: props.environment,
+    });
+
+    // Create Lambda functions with OpenSearch integration
     const lambdaConstruct = new LambdaConstruct(this, 'LambdaConstruct', {
       environment: props.environment,
+      opensearchCollectionEndpoint: opensearchConstruct.collectionEndpoint,
+      opensearchCollectionArn: opensearchConstruct.collectionArn,
     });
 
     // Create API Gateway with Lambda integrations
@@ -42,6 +50,12 @@ export class RapidAddressServiceStack extends Stack {
     const frontendConstruct = new FrontendConstruct(this, 'FrontendConstruct', {
       environment: props.environment,
     });
+
+    // Create data access policy for Lambda roles to access OpenSearch
+    opensearchConstruct.createDataAccessPolicy(
+      lambdaConstruct.pafFunction.role!.roleArn,
+      opensearchConstruct.initFunction.role!.roleArn
+    );
 
     // Stack Outputs
     new CfnOutput(this, 'CloudFrontDomainName', {
@@ -90,6 +104,42 @@ export class RapidAddressServiceStack extends Stack {
       value: lambdaConstruct.awsLocationFunction.functionName,
       description: 'AWS Location Lambda function name',
       exportName: `${props.environment}-LocationFunctionName`,
+    });
+
+    new CfnOutput(this, 'OpenSearchCollectionName', {
+      value: opensearchConstruct.collectionName,
+      description: 'OpenSearch Serverless collection name',
+      exportName: `${props.environment}-OpenSearchCollectionName`,
+    });
+
+    new CfnOutput(this, 'OpenSearchCollectionEndpoint', {
+      value: opensearchConstruct.collectionEndpoint,
+      description: 'OpenSearch Serverless collection endpoint',
+      exportName: `${props.environment}-OpenSearchEndpoint`,
+    });
+
+    new CfnOutput(this, 'OpenSearchCollectionArn', {
+      value: opensearchConstruct.collectionArn,
+      description: 'OpenSearch Serverless collection ARN',
+      exportName: `${props.environment}-OpenSearchArn`,
+    });
+
+    new CfnOutput(this, 'OpenSearchDashboardUrl', {
+      value: `https://${opensearchConstruct.collectionName}.${props.env?.region || 'ap-southeast-2'}.aoss.amazonaws.com/_dashboards`,
+      description: 'OpenSearch Dashboards URL',
+      exportName: `${props.environment}-OpenSearchDashboardUrl`,
+    });
+
+    new CfnOutput(this, 'OpenSearchIndexName', {
+      value: 'paf-addresses',
+      description: 'OpenSearch index name for PAF addresses',
+      exportName: `${props.environment}-OpenSearchIndexName`,
+    });
+
+    new CfnOutput(this, 'OpenSearchInitFunctionName', {
+      value: opensearchConstruct.initFunction.functionName,
+      description: 'OpenSearch initialization Lambda function name',
+      exportName: `${props.environment}-OpenSearchInitFunctionName`,
     });
   }
 }

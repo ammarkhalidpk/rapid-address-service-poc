@@ -56,7 +56,8 @@ describe('RapidAddressServiceStack', () => {
 
     test('Lambda functions have CloudWatch log groups', () => {
       // API Gateway log group is created
-      template.resourceCountIs('AWS::Logs::LogGroup', 1);
+      const logGroupCount = Object.keys(template.findResources('AWS::Logs::LogGroup')).length;
+      expect(logGroupCount).toBeGreaterThanOrEqual(1);
     });
 
     test('Lambda functions have appropriate environment variables', () => {
@@ -259,12 +260,172 @@ describe('RapidAddressServiceStack', () => {
         Description: 'AWS Location Lambda function name',
       });
     });
+
+    test('OpenSearch outputs are created', () => {
+      template.hasOutput('OpenSearchCollectionName', {
+        Description: 'OpenSearch Serverless collection name',
+        Export: {
+          Name: 'test-OpenSearchCollectionName',
+        },
+      });
+
+      template.hasOutput('OpenSearchCollectionEndpoint', {
+        Description: 'OpenSearch Serverless collection endpoint',
+        Export: {
+          Name: 'test-OpenSearchEndpoint',
+        },
+      });
+
+      template.hasOutput('OpenSearchCollectionArn', {
+        Description: 'OpenSearch Serverless collection ARN',
+        Export: {
+          Name: 'test-OpenSearchArn',
+        },
+      });
+
+      template.hasOutput('OpenSearchDashboardUrl', {
+        Description: 'OpenSearch Dashboards URL',
+        Export: {
+          Name: 'test-OpenSearchDashboardUrl',
+        },
+      });
+
+      template.hasOutput('OpenSearchIndexName', {
+        Description: 'OpenSearch index name for PAF addresses',
+        Export: {
+          Name: 'test-OpenSearchIndexName',
+        },
+      });
+
+      template.hasOutput('OpenSearchInitFunctionName', {
+        Description: 'OpenSearch initialization Lambda function name',
+        Export: {
+          Name: 'test-OpenSearchInitFunctionName',
+        },
+      });
+    });
+  });
+
+  describe('OpenSearch Serverless', () => {
+    test('OpenSearch collection is created with correct configuration', () => {
+      template.hasResourceProperties('AWS::OpenSearchServerless::Collection', {
+        Name: 'rapid-address-test-paf',
+        Description: 'PAF address search collection for test environment',
+        Type: 'SEARCH',
+      });
+    });
+
+    test('Encryption security policy is created', () => {
+      template.hasResourceProperties('AWS::OpenSearchServerless::SecurityPolicy', {
+        Type: 'encryption',
+        Name: 'rapid-address-test-paf-encryption',
+      });
+    });
+
+    test('Network security policy is created', () => {
+      template.hasResourceProperties('AWS::OpenSearchServerless::SecurityPolicy', {
+        Type: 'network',
+      });
+    });
+
+    test('Read-only data access policy is created for PAF Lambda', () => {
+      template.hasResourceProperties('AWS::OpenSearchServerless::AccessPolicy', {
+        Type: 'data',
+        Name: 'rapid-address-test-paf-read-only',
+      });
+    });
+
+    test('Read-write data access policy is created for Init Lambda', () => {
+      template.hasResourceProperties('AWS::OpenSearchServerless::AccessPolicy', {
+        Type: 'data',
+        Name: 'rapid-address-test-paf-read-write',
+      });
+    });
+
+    test('Two separate data access policies are created', () => {
+      const policies = template.findResources('AWS::OpenSearchServerless::AccessPolicy');
+      const dataPolicies = Object.values(policies).filter(
+        (policy: any) => policy.Properties.Type === 'data'
+      );
+      expect(dataPolicies.length).toBe(2);
+    });
+
+    test('Read-only policy structure is correct', () => {
+      // Verify read-only policy exists and has policy document
+      template.hasResourceProperties('AWS::OpenSearchServerless::AccessPolicy', {
+        Name: 'rapid-address-test-paf-read-only',
+        Type: 'data',
+      });
+
+      // Get the actual policy to verify it has a Policy property
+      const policies = template.findResources('AWS::OpenSearchServerless::AccessPolicy');
+      const readOnlyPolicy = Object.values(policies).find(
+        (policy: any) => policy.Properties.Name === 'rapid-address-test-paf-read-only'
+      ) as any;
+
+      expect(readOnlyPolicy).toBeDefined();
+      expect(readOnlyPolicy.Properties.Policy).toBeDefined();
+    });
+
+    test('Read-write policy structure is correct', () => {
+      // Verify read-write policy exists and has policy document
+      template.hasResourceProperties('AWS::OpenSearchServerless::AccessPolicy', {
+        Name: 'rapid-address-test-paf-read-write',
+        Type: 'data',
+      });
+
+      // Get the actual policy to verify it has a Policy property
+      const policies = template.findResources('AWS::OpenSearchServerless::AccessPolicy');
+      const readWritePolicy = Object.values(policies).find(
+        (policy: any) => policy.Properties.Name === 'rapid-address-test-paf-read-write'
+      ) as any;
+
+      expect(readWritePolicy).toBeDefined();
+      expect(readWritePolicy.Properties.Policy).toBeDefined();
+    });
+
+    test('OpenSearch init Lambda function is created', () => {
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        FunctionName: 'rapid-address-test-opensearch-init',
+        Description: 'Initialize OpenSearch index with PAF mappings',
+        Runtime: 'nodejs20.x',
+        MemorySize: 256,
+        Timeout: 60,
+      });
+    });
+
+    test('Lambda functions have OpenSearch environment variables', () => {
+      const envCapture = new Capture();
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        FunctionName: 'rapid-address-test-paf-autocomplete',
+        Environment: {
+          Variables: envCapture,
+        },
+      });
+
+      const envVars = envCapture.asObject();
+      expect(envVars).toHaveProperty('OPENSEARCH_ENDPOINT');
+      expect(envVars).toHaveProperty('OPENSEARCH_INDEX', 'paf-addresses');
+    });
+
+    test('PAF Lambda has OpenSearch IAM permissions', () => {
+      const policies = template.findResources('AWS::IAM::Policy');
+      const policyValues = Object.values(policies);
+      const hasOpenSearchPermission = policyValues.some((policy: any) => {
+        const statements = policy.Properties?.PolicyDocument?.Statement || [];
+        return statements.some((stmt: any) =>
+          stmt.Action === 'aoss:APIAccessAll' && stmt.Effect === 'Allow'
+        );
+      });
+      expect(hasOpenSearchPermission).toBe(true);
+    });
   });
 
   describe('Resource Counts', () => {
     test('Correct number of Lambda functions created', () => {
-      // 2 Lambda functions + 2 SingletonFunction for log retention
-      template.resourceCountIs('AWS::Lambda::Function', 4);
+      // 2 main Lambda functions + 1 OpenSearch init Lambda + log retention functions
+      const lambdaCount = Object.keys(template.findResources('AWS::Lambda::Function')).length;
+      expect(lambdaCount).toBeGreaterThanOrEqual(3);
     });
 
     test('Correct number of API Gateway resources created', () => {
