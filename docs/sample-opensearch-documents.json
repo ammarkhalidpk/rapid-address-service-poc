@@ -1,0 +1,394 @@
+[
+  {
+    "_comment": "Example 1: Complex address with unit, floor, and building",
+    "delivery_point_id": 30000612,
+    "delivery_point_group_id": 702299,
+    "locality_id": 13265,
+    "unit": {
+      "type": "SHOP",
+      "number": "45",
+      "full": "SHOP 45"
+    },
+    "floor": {
+      "type": "L",
+      "number": "2",
+      "full": "L 2"
+    },
+    "building_name": "TRINITY ARCADE",
+    "street_number": {
+      "number_1": 671,
+      "suffix_1": null,
+      "number_2": null,
+      "suffix_2": null,
+      "full": "671"
+    },
+    "lot_number": null,
+    "street": {
+      "name": "HAY",
+      "type": "ST",
+      "suffix": null,
+      "full": "HAY ST"
+    },
+    "postal_delivery": {
+      "type": null,
+      "number": null,
+      "prefix": null,
+      "suffix": null,
+      "full": null
+    },
+    "locality": {
+      "name": "PERTH",
+      "postcode": "6000",
+      "state": "WA",
+      "synonyms": []
+    },
+    "street_alternatives": [],
+    "primary_point_indicator": "",
+    "formatted_address": "SHOP 45 L 2 TRINITY ARCADE 671 HAY ST, PERTH WA 6000",
+    "formatted_address_short": "671 HAY ST, PERTH WA 6000",
+    "search_text": "SHOP 45 L 2 TRINITY ARCADE 671 HAY ST PERTH WA 6000"
+  },
+  {
+    "_comment": "Example 2: Simple street address",
+    "delivery_point_id": 30000273,
+    "delivery_point_group_id": 546459,
+    "locality_id": 12220,
+    "unit": {
+      "type": null,
+      "number": null,
+      "full": null
+    },
+    "floor": {
+      "type": null,
+      "number": null,
+      "full": null
+    },
+    "building_name": null,
+    "street_number": {
+      "number_1": 1,
+      "suffix_1": null,
+      "number_2": null,
+      "suffix_2": null,
+      "full": "1"
+    },
+    "lot_number": null,
+    "street": {
+      "name": "FRESHFIELD",
+      "type": "AVE",
+      "suffix": null,
+      "full": "FRESHFIELD AVE"
+    },
+    "postal_delivery": {
+      "type": null,
+      "number": null,
+      "prefix": null,
+      "suffix": null,
+      "full": null
+    },
+    "locality": {
+      "name": "WANTIRNA",
+      "postcode": "3152",
+      "state": "VIC",
+      "synonyms": []
+    },
+    "street_alternatives": [],
+    "primary_point_indicator": "",
+    "formatted_address": "1 FRESHFIELD AVE, WANTIRNA VIC 3152",
+    "formatted_address_short": "1 FRESHFIELD AVE, WANTIRNA VIC 3152",
+    "search_text": "1 FRESHFIELD AVE WANTIRNA VIC 3152"
+  },
+  {
+    "_comment": "Example 3: Unit address",
+    "delivery_point_id": 30000023,
+    "delivery_point_group_id": 159085,
+    "locality_id": 5758,
+    "unit": {
+      "type": "U",
+      "number": "505",
+      "full": "U 505"
+    },
+    "floor": {
+      "type": null,
+      "number": null,
+      "full": null
+    },
+    "building_name": null,
+    "street_number": {
+      "number_1": 1,
+      "suffix_1": null,
+      "number_2": null,
+      "suffix_2": null,
+      "full": "1"
+    },
+    "lot_number": null,
+    "street": {
+      "name": "BRIGHTWELL",
+      "type": "LANE",
+      "suffix": null,
+      "full": "BRIGHTWELL LANE"
+    },
+    "postal_delivery": {
+      "type": null,
+      "number": null,
+      "prefix": null,
+      "suffix": null,
+      "full": null
+    },
+    "locality": {
+      "name": "ERSKINEVILLE",
+      "postcode": "2043",
+      "state": "NSW",
+      "synonyms": []
+    },
+    "street_alternatives": [],
+    "primary_point_indicator": "R",
+    "formatted_address": "U 505 1 BRIGHTWELL LANE, ERSKINEVILLE NSW 2043",
+    "formatted_address_short": "1 BRIGHTWELL LANE, ERSKINEVILLE NSW 2043",
+    "search_text": "U 505 1 BRIGHTWELL LANE ERSKINEVILLE NSW 2043"
+  },
+  {
+    "_comment": "Example 4: PO Box address",
+    "delivery_point_id": 30000014,
+    "delivery_point_group_id": 361634,
+    "locality_id": 12220,
+    "unit": {
+      "type": null,
+      "number": null,
+      "full": null
+    },
+    "floor": {
+      "type": null,
+      "number": null,
+      "full": null
+    },
+    "building_name": null,
+    "street_number": {
+      "number_1": 0,
+      "suffix_1": null,
+      "number_2": null,
+      "suffix_2": null,
+      "full": null
+    },
+    "lot_number": null,
+    "street": {
+      "name": null,
+      "type": null,
+      "suffix": null,
+      "full": null
+    },
+    "postal_delivery": {
+      "type": "PO BOX",
+      "number": 470,
+      "prefix": null,
+      "suffix": null,
+      "full": "PO BOX 470"
+    },
+    "locality": {
+      "name": "WAIKERIE",
+      "postcode": "5330",
+      "state": "SA",
+      "synonyms": []
+    },
+    "street_alternatives": [],
+    "primary_point_indicator": "",
+    "formatted_address": "PO BOX 470, WAIKERIE SA 5330",
+    "formatted_address_short": "PO BOX 470, WAIKERIE SA 5330",
+    "search_text": "PO BOX 470 WAIKERIE SA 5330"
+  },
+  {
+    "_comment": "Example 5: Street number range with unit and building",
+    "delivery_point_id": 30000938,
+    "delivery_point_group_id": 702300,
+    "locality_id": 13266,
+    "unit": {
+      "type": "U",
+      "number": "19",
+      "full": "U 19"
+    },
+    "floor": {
+      "type": null,
+      "number": null,
+      "full": null
+    },
+    "building_name": "PARKSIDE FLATS",
+    "street_number": {
+      "number_1": 80,
+      "suffix_1": null,
+      "number_2": 100,
+      "suffix_2": null,
+      "full": "80-100"
+    },
+    "lot_number": null,
+    "street": {
+      "name": "RAILWAY",
+      "type": "AVE",
+      "suffix": null,
+      "full": "RAILWAY AVE"
+    },
+    "postal_delivery": {
+      "type": null,
+      "number": null,
+      "prefix": null,
+      "suffix": null,
+      "full": null
+    },
+    "locality": {
+      "name": "PARKSIDE",
+      "postcode": "4825",
+      "state": "QLD",
+      "synonyms": []
+    },
+    "street_alternatives": [],
+    "primary_point_indicator": "",
+    "formatted_address": "U 19 PARKSIDE FLATS 80-100 RAILWAY AVE, PARKSIDE QLD 4825",
+    "formatted_address_short": "80-100 RAILWAY AVE, PARKSIDE QLD 4825",
+    "search_text": "U 19 PARKSIDE FLATS 80-100 RAILWAY AVE PARKSIDE QLD 4825"
+  },
+  {
+    "_comment": "Example 6: Street number with suffix",
+    "delivery_point_id": 30001582,
+    "delivery_point_group_id": 702301,
+    "locality_id": 13267,
+    "unit": {
+      "type": null,
+      "number": null,
+      "full": null
+    },
+    "floor": {
+      "type": null,
+      "number": null,
+      "full": null
+    },
+    "building_name": null,
+    "street_number": {
+      "number_1": 1,
+      "suffix_1": "A",
+      "number_2": null,
+      "suffix_2": null,
+      "full": "1A"
+    },
+    "lot_number": null,
+    "street": {
+      "name": "ANZAC",
+      "type": "AVE",
+      "suffix": null,
+      "full": "ANZAC AVE"
+    },
+    "postal_delivery": {
+      "type": null,
+      "number": null,
+      "prefix": null,
+      "suffix": null,
+      "full": null
+    },
+    "locality": {
+      "name": "COBURG NORTH",
+      "postcode": "3058",
+      "state": "VIC",
+      "synonyms": []
+    },
+    "street_alternatives": [],
+    "primary_point_indicator": "",
+    "formatted_address": "1A ANZAC AVE, COBURG NORTH VIC 3058",
+    "formatted_address_short": "1A ANZAC AVE, COBURG NORTH VIC 3058",
+    "search_text": "1A ANZAC AVE COBURG NORTH VIC 3058"
+  },
+  {
+    "_comment": "Example 7: Address with locality synonym",
+    "delivery_point_id": 30000001,
+    "delivery_point_group_id": 702302,
+    "locality_id": 72,
+    "unit": {
+      "type": null,
+      "number": null,
+      "full": null
+    },
+    "floor": {
+      "type": null,
+      "number": null,
+      "full": null
+    },
+    "building_name": null,
+    "street_number": {
+      "number_1": 25,
+      "suffix_1": null,
+      "number_2": null,
+      "suffix_2": null,
+      "full": "25"
+    },
+    "lot_number": null,
+    "street": {
+      "name": "MAIN",
+      "type": "RD",
+      "suffix": null,
+      "full": "MAIN RD"
+    },
+    "postal_delivery": {
+      "type": null,
+      "number": null,
+      "prefix": null,
+      "suffix": null,
+      "full": null
+    },
+    "locality": {
+      "name": "ST CLAIR",
+      "postcode": "5011",
+      "state": "SA",
+      "synonyms": ["SAINT CLAIR", "ST CLARE"]
+    },
+    "street_alternatives": [],
+    "primary_point_indicator": "",
+    "formatted_address": "25 MAIN RD, ST CLAIR SA 5011",
+    "formatted_address_short": "25 MAIN RD, ST CLAIR SA 5011",
+    "search_text": "25 MAIN RD ST CLAIR SA 5011"
+  },
+  {
+    "_comment": "Example 8: Address with street alternative",
+    "delivery_point_id": 30000002,
+    "delivery_point_group_id": 38128,
+    "locality_id": 5000,
+    "unit": {
+      "type": null,
+      "number": null,
+      "full": null
+    },
+    "floor": {
+      "type": null,
+      "number": null,
+      "full": null
+    },
+    "building_name": null,
+    "street_number": {
+      "number_1": 100,
+      "suffix_1": null,
+      "number_2": null,
+      "suffix_2": null,
+      "full": "100"
+    },
+    "lot_number": null,
+    "street": {
+      "name": "CONNOLLY",
+      "type": "ST",
+      "suffix": null,
+      "full": "CONNOLLY ST"
+    },
+    "postal_delivery": {
+      "type": null,
+      "number": null,
+      "prefix": null,
+      "suffix": null,
+      "full": null
+    },
+    "locality": {
+      "name": "SARINA",
+      "postcode": "4737",
+      "state": "QLD",
+      "synonyms": []
+    },
+    "street_alternatives": ["BROOKS RD W"],
+    "primary_point_indicator": "",
+    "formatted_address": "100 CONNOLLY ST, SARINA QLD 4737",
+    "formatted_address_short": "100 CONNOLLY ST, SARINA QLD 4737",
+    "search_text": "100 CONNOLLY ST SARINA QLD 4737"
+  }
+]

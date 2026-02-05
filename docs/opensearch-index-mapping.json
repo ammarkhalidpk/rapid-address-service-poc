@@ -1,0 +1,225 @@
+{
+  "settings": {
+    "number_of_shards": 5,
+    "number_of_replicas": 1,
+    "refresh_interval": "30s",
+    "max_result_window": 10000,
+    "analysis": {
+      "analyzer": {
+        "autocomplete_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "asciifolding",
+            "autocomplete_edge_ngram"
+          ]
+        },
+        "autocomplete_search_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "asciifolding"
+          ]
+        },
+        "standard_lowercase": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "asciifolding"
+          ]
+        }
+      },
+      "filter": {
+        "autocomplete_edge_ngram": {
+          "type": "edge_ngram",
+          "min_gram": 2,
+          "max_gram": 20,
+          "preserve_original": true
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "delivery_point_id": {
+        "type": "long"
+      },
+      "delivery_point_group_id": {
+        "type": "long"
+      },
+      "locality_id": {
+        "type": "long"
+      },
+      "unit": {
+        "properties": {
+          "type": {
+            "type": "keyword"
+          },
+          "number": {
+            "type": "keyword"
+          },
+          "full": {
+            "type": "text",
+            "analyzer": "autocomplete_analyzer",
+            "search_analyzer": "autocomplete_search_analyzer"
+          }
+        }
+      },
+      "floor": {
+        "properties": {
+          "type": {
+            "type": "keyword"
+          },
+          "number": {
+            "type": "keyword"
+          },
+          "full": {
+            "type": "text",
+            "analyzer": "autocomplete_analyzer",
+            "search_analyzer": "autocomplete_search_analyzer"
+          }
+        }
+      },
+      "building_name": {
+        "type": "text",
+        "analyzer": "autocomplete_analyzer",
+        "search_analyzer": "autocomplete_search_analyzer",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "street_number": {
+        "properties": {
+          "number_1": {
+            "type": "integer"
+          },
+          "suffix_1": {
+            "type": "keyword"
+          },
+          "number_2": {
+            "type": "integer"
+          },
+          "suffix_2": {
+            "type": "keyword"
+          },
+          "full": {
+            "type": "text",
+            "analyzer": "autocomplete_analyzer",
+            "search_analyzer": "autocomplete_search_analyzer"
+          }
+        }
+      },
+      "lot_number": {
+        "type": "keyword"
+      },
+      "street": {
+        "properties": {
+          "name": {
+            "type": "text",
+            "analyzer": "autocomplete_analyzer",
+            "search_analyzer": "autocomplete_search_analyzer",
+            "fields": {
+              "keyword": {
+                "type": "keyword",
+                "ignore_above": 256
+              }
+            }
+          },
+          "type": {
+            "type": "keyword"
+          },
+          "suffix": {
+            "type": "keyword"
+          },
+          "full": {
+            "type": "text",
+            "analyzer": "autocomplete_analyzer",
+            "search_analyzer": "autocomplete_search_analyzer"
+          }
+        }
+      },
+      "postal_delivery": {
+        "properties": {
+          "type": {
+            "type": "keyword"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "prefix": {
+            "type": "keyword"
+          },
+          "suffix": {
+            "type": "keyword"
+          },
+          "full": {
+            "type": "text",
+            "analyzer": "autocomplete_analyzer",
+            "search_analyzer": "autocomplete_search_analyzer"
+          }
+        }
+      },
+      "locality": {
+        "properties": {
+          "name": {
+            "type": "text",
+            "analyzer": "autocomplete_analyzer",
+            "search_analyzer": "autocomplete_search_analyzer",
+            "fields": {
+              "keyword": {
+                "type": "keyword",
+                "ignore_above": 256
+              }
+            }
+          },
+          "postcode": {
+            "type": "keyword"
+          },
+          "state": {
+            "type": "keyword"
+          },
+          "synonyms": {
+            "type": "text",
+            "analyzer": "autocomplete_analyzer",
+            "search_analyzer": "autocomplete_search_analyzer"
+          }
+        }
+      },
+      "street_alternatives": {
+        "type": "text",
+        "analyzer": "autocomplete_analyzer",
+        "search_analyzer": "autocomplete_search_analyzer"
+      },
+      "primary_point_indicator": {
+        "type": "keyword"
+      },
+      "formatted_address": {
+        "type": "text",
+        "analyzer": "autocomplete_analyzer",
+        "search_analyzer": "autocomplete_search_analyzer",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 512
+          }
+        }
+      },
+      "formatted_address_short": {
+        "type": "text",
+        "analyzer": "autocomplete_analyzer",
+        "search_analyzer": "autocomplete_search_analyzer"
+      },
+      "search_text": {
+        "type": "text",
+        "analyzer": "autocomplete_analyzer",
+        "search_analyzer": "autocomplete_search_analyzer"
+      }
+    }
+  }
+}
