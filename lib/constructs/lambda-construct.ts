@@ -1,11 +1,14 @@
 import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import { Duration, Tags } from 'aws-cdk-lib';
 import * as path from 'path';
 
 export interface LambdaConstructProps {
   readonly environment: string;
+  readonly opensearchCollectionEndpoint?: string;
+  readonly opensearchCollectionArn?: string;
 }
 
 /**
@@ -23,15 +26,23 @@ export class LambdaConstruct extends Construct {
     super(scope, id);
 
     // Common Lambda configuration
+    const commonEnvironment: Record<string, string> = {
+      ENVIRONMENT: props.environment,
+      LOG_LEVEL: 'INFO',
+    };
+
+    // Add OpenSearch environment variables if provided
+    if (props.opensearchCollectionEndpoint) {
+      commonEnvironment.OPENSEARCH_ENDPOINT = props.opensearchCollectionEndpoint;
+      commonEnvironment.OPENSEARCH_INDEX = 'paf-addresses';
+    }
+
     const commonLambdaProps = {
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 256,
       timeout: Duration.seconds(30),
       logRetention: logs.RetentionDays.ONE_WEEK,
-      environment: {
-        ENVIRONMENT: props.environment,
-        LOG_LEVEL: 'INFO',
-      },
+      environment: commonEnvironment,
     };
 
     // PAF Autocomplete Lambda Function
@@ -55,6 +66,16 @@ export class LambdaConstruct extends Construct {
     // Add tags to Lambda functions
     Tags.of(this.pafFunction).add('Function', 'PafAutocomplete');
     Tags.of(this.awsLocationFunction).add('Function', 'AwsLocationAutocomplete');
+
+    // Add OpenSearch IAM permissions if collection ARN is provided
+    if (props.opensearchCollectionArn) {
+      const opensearchPolicy = new iam.PolicyStatement({
+        actions: ['aoss:APIAccessAll'],
+        resources: [props.opensearchCollectionArn],
+      });
+
+      this.pafFunction.addToRolePolicy(opensearchPolicy);
+    }
 
     // Future: Add IAM permissions for AWS Location Service
     // this.awsLocationFunction.addToRolePolicy(new iam.PolicyStatement({

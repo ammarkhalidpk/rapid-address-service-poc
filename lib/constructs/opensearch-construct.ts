@@ -1,0 +1,169 @@
+import { Construct } from 'constructs';
+import * as opensearchserverless from 'aws-cdk-lib/aws-opensearchserverless';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import { Duration, Tags } from 'aws-cdk-lib';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as path from 'path';
+
+export interface OpenSearchConstructProps {
+  readonly environment: string;
+}
+
+/**
+ * OpenSearch Serverless Construct
+ *
+ * Creates an OpenSearch Serverless collection for PAF address indexing:
+ * - Encryption security policy (AWS-owned keys)
+ * - Network security policy (public access for POC)
+ * - OpenSearch Serverless collection (SEARCH type)
+ * - Data access policy (created after Lambda role is available)
+ * - Index initialization Lambda function
+ */
+export class OpenSearchConstruct extends Construct {
+  public readonly collection: opensearchserverless.CfnCollection;
+  public readonly collectionEndpoint: string;
+  public readonly collectionArn: string;
+  public readonly collectionName: string;
+  public readonly initFunction: lambda.Function;
+  private readonly environment: string;
+
+  constructor(scope: Construct, id: string, props: OpenSearchConstructProps) {
+    super(scope, id);
+
+    this.environment = props.environment;
+    this.collectionName = `rapid-address-${props.environment}-paf`;
+
+    // 1. Encryption Security Policy
+    const encryptionPolicy = new opensearchserverless.CfnSecurityPolicy(
+      this,
+      'EncryptionPolicy',
+      {
+        name: `${this.collectionName}-encryption`,
+        type: 'encryption',
+        policy: JSON.stringify({
+          Rules: [
+            {
+              ResourceType: 'collection',
+              Resource: [`collection/${this.collectionName}`],
+            },
+          ],
+          AWSOwnedKey: true,
+        }),
+      }
+    );
+
+    // 2. Network Security Policy
+    const networkPolicy = new opensearchserverless.CfnSecurityPolicy(
+      this,
+      'NetworkPolicy',
+      {
+        name: `${this.collectionName}-network`,
+        type: 'network',
+        policy: JSON.stringify([
+          {
+            Rules: [
+              {
+                ResourceType: 'collection',
+                Resource: [`collection/${this.collectionName}`],
+              },
+              {
+                ResourceType: 'dashboard',
+                Resource: [`collection/${this.collectionName}`],
+              },
+            ],
+            AllowFromPublic: true,
+          },
+        ]),
+      }
+    );
+
+    // 3. OpenSearch Serverless Collection
+    this.collection = new opensearchserverless.CfnCollection(this, 'Collection', {
+      name: this.collectionName,
+      description: `PAF address search collection for ${props.environment} environment`,
+      type: 'SEARCH',
+    });
+
+    // Collection depends on security policies
+    this.collection.addDependency(encryptionPolicy);
+    this.collection.addDependency(networkPolicy);
+
+    // Set collection properties
+    this.collectionEndpoint = this.collection.attrCollectionEndpoint;
+    this.collectionArn = this.collection.attrArn;
+
+    // 4. Create Index Initialization Lambda
+    this.initFunction = new NodejsFunction(this, 'InitFunction', {
+      functionName: `rapid-address-${props.environment}-opensearch-init`,
+      description: 'Initialize OpenSearch index with PAF mappings',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'handler',
+      entry: path.join(__dirname, '../../lambda/opensearch-init/index.ts'),
+      memorySize: 256,
+      timeout: Duration.seconds(60),
+      logRetention: logs.RetentionDays.ONE_WEEK,
+      environment: {
+        ENVIRONMENT: props.environment,
+        OPENSEARCH_ENDPOINT: this.collectionEndpoint,
+        OPENSEARCH_INDEX: 'paf-addresses',
+        LOG_LEVEL: 'INFO',
+      },
+      bundling: {
+        externalModules: [],
+        minify: true,
+        sourceMap: true,
+      },
+    });
+
+    // Add tags
+    Tags.of(this.collection).add('Environment', props.environment);
+    Tags.of(this.collection).add('Purpose', 'PAF-Address-Search');
+    Tags.of(this.initFunction).add('Function', 'OpenSearchInit');
+  }
+
+  /**
+   * Create data access policy for Lambda role
+   * Must be called after Lambda functions are created to get the role ARN
+   */
+  public createDataAccessPolicy(lambdaRoleArn: string, initLambdaRoleArn: string): void {
+    const dataAccessPolicy = new opensearchserverless.CfnAccessPolicy(
+      this,
+      'DataAccessPolicy',
+      {
+        name: `${this.collectionName}-data-access`,
+        type: 'data',
+        policy: JSON.stringify([
+          {
+            Rules: [
+              {
+                ResourceType: 'collection',
+                Resource: [`collection/${this.collectionName}`],
+                Permission: [
+                  'aoss:CreateCollectionItems',
+                  'aoss:UpdateCollectionItems',
+                  'aoss:DescribeCollectionItems',
+                ],
+              },
+              {
+                ResourceType: 'index',
+                Resource: [`index/${this.collectionName}/*`],
+                Permission: [
+                  'aoss:CreateIndex',
+                  'aoss:DescribeIndex',
+                  'aoss:ReadDocument',
+                  'aoss:WriteDocument',
+                  'aoss:UpdateIndex',
+                ],
+              },
+            ],
+            Principal: [lambdaRoleArn, initLambdaRoleArn],
+          },
+        ]),
+      }
+    );
+
+    // Data access policy depends on the collection
+    dataAccessPolicy.node.addDependency(this.collection);
+  }
+}
