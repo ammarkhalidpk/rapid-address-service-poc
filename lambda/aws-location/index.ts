@@ -1,20 +1,30 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import {
+  LocationClient,
+  SearchPlaceIndexForSuggestionsCommand,
+  SearchPlaceIndexForSuggestionsCommandInput,
+} from '@aws-sdk/client-location';
 
 /**
  * AWS Location Service Autocomplete Lambda Handler
  *
- * This is a placeholder implementation for AWS Location Service integration.
- * Future implementation will use AWS Location Service SearchPlaceIndexForSuggestions API.
+ * Integrates with AWS Location Service SearchPlaceIndexForSuggestions API
+ * to provide address suggestions using Esri data provider.
  */
+
+// Initialize Location Service client
+const locationClient = new LocationClient({ region: process.env.AWS_REGION || 'ap-southeast-2' });
+
 export const handler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
   console.log('AWS Location - Event received:', JSON.stringify(event, null, 2));
 
+  const startTime = Date.now();
+
   try {
-    const query = event.queryStringParameters?.query || '';
-    const limit = parseInt(event.queryStringParameters?.limit || '10', 10);
-    const biasPosition = event.queryStringParameters?.biasPosition; // Format: "lng,lat"
+    // Parse query parameter - support both 'q' and 'query'
+    const query = event.queryStringParameters?.q || event.queryStringParameters?.query || '';
 
     if (!query || query.trim().length === 0) {
       return {
@@ -24,44 +34,50 @@ export const handler = async (
           'Access-Control-Allow-Origin': '*',
         },
         body: JSON.stringify({
-          error: 'Missing required query parameter: query',
+          error: 'Missing required query parameter: q or query',
         }),
       };
     }
 
-    console.log(`AWS Location query: "${query}", limit: ${limit}, bias: ${biasPosition || 'none'}`);
-
-    // Placeholder response - will be replaced with actual AWS Location Service integration
-    const mockResults = [
-      {
-        id: 'place-1',
-        text: `${query} Street`,
-        placeName: `${query} Street, Sydney, New South Wales, 2000, Australia`,
-        region: 'New South Wales',
-        municipality: 'Sydney',
-        postalCode: '2000',
-        country: 'AUS',
-        geometry: {
-          point: [151.2093, -33.8688], // lng, lat
+    // Validate Place Index environment variable
+    const placeIndexName = process.env.PLACE_INDEX_NAME;
+    if (!placeIndexName) {
+      console.error('PLACE_INDEX_NAME environment variable is not set');
+      return {
+        statusCode: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
         },
-        relevance: 0.92,
-      },
-      {
-        id: 'place-2',
-        text: `${query} Avenue`,
-        placeName: `${query} Avenue, Melbourne, Victoria, 3000, Australia`,
-        region: 'Victoria',
-        municipality: 'Melbourne',
-        postalCode: '3000',
-        country: 'AUS',
-        geometry: {
-          point: [144.9631, -37.8136], // lng, lat
-        },
-        relevance: 0.85,
-      },
-    ].slice(0, limit);
+        body: JSON.stringify({
+          error: 'Configuration error: Place Index not configured',
+        }),
+      };
+    }
 
-    console.log(`AWS Location returning ${mockResults.length} results`);
+    console.log(`AWS Location query: "${query}", placeIndex: ${placeIndexName}`);
+
+    // Prepare SearchPlaceIndexForSuggestions request
+    const input: SearchPlaceIndexForSuggestionsCommandInput = {
+      IndexName: placeIndexName,
+      Text: query,
+      MaxResults: 5,
+      FilterCountries: ['AUS'], // Filter to Australia only
+    };
+
+    // Call AWS Location Service
+    const command = new SearchPlaceIndexForSuggestionsCommand(input);
+    const response = await locationClient.send(command);
+
+    const latencyMs = Date.now() - startTime;
+
+    // Format results
+    const results = (response.Results || []).map((result) => ({
+      text: result.Text || '',
+      placeId: result.PlaceId || '',
+    }));
+
+    console.log(`AWS Location returned ${results.length} results in ${latencyMs}ms`);
 
     return {
       statusCode: 200,
@@ -70,14 +86,14 @@ export const handler = async (
         'Access-Control-Allow-Origin': '*',
       },
       body: JSON.stringify({
-        query,
-        results: mockResults,
-        count: mockResults.length,
-        source: 'AWSLocation',
-        biasPosition: biasPosition || null,
+        results,
+        count: results.length,
+        latencyMs,
+        estimatedCost: 0.0005, // $0.0005 per request for SearchPlaceIndexForSuggestions
       }),
     };
   } catch (error) {
+    const latencyMs = Date.now() - startTime;
     console.error('AWS Location error:', error);
 
     return {
@@ -89,6 +105,7 @@ export const handler = async (
       body: JSON.stringify({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
+        latencyMs,
       }),
     };
   }

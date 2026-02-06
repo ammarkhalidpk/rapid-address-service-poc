@@ -6,6 +6,7 @@ import { FrontendConstruct } from './constructs/frontend-construct';
 import { OpenSearchConstruct } from './constructs/opensearch-construct';
 import { DataBucketConstruct } from './constructs/data-bucket-construct';
 import { MigrationLambdaConstruct } from './constructs/migration-lambda-construct';
+import { LocationConstruct } from './constructs/location-construct';
 
 export interface RapidAddressServiceStackProps extends StackProps {
   readonly environment: string;
@@ -51,11 +52,18 @@ export class RapidAddressServiceStack extends Stack {
       }
     );
 
-    // Create Lambda functions with OpenSearch integration
+    // Create AWS Location Service Place Index
+    const locationConstruct = new LocationConstruct(this, 'LocationConstruct', {
+      environment: props.environment,
+    });
+
+    // Create Lambda functions with OpenSearch and Location Service integration
     const lambdaConstruct = new LambdaConstruct(this, 'LambdaConstruct', {
       environment: props.environment,
       opensearchCollectionEndpoint: opensearchConstruct.collectionEndpoint,
       opensearchCollectionArn: opensearchConstruct.collectionArn,
+      placeIndexName: locationConstruct.placeIndexName,
+      placeIndexArn: locationConstruct.placeIndexArn,
     });
 
     // Create API Gateway with Lambda integrations
@@ -178,6 +186,18 @@ export class RapidAddressServiceStack extends Stack {
       value: migrationLambdaConstruct.migrationFunction.functionName,
       description: 'Data migration Lambda function name',
       exportName: `${props.environment}-MigrationFunctionName`,
+    });
+
+    new CfnOutput(this, 'LocationPlaceIndexName', {
+      value: locationConstruct.placeIndexName,
+      description: 'AWS Location Service Place Index name',
+      exportName: `${props.environment}-LocationPlaceIndexName`,
+    });
+
+    new CfnOutput(this, 'LocationPlaceIndexArn', {
+      value: locationConstruct.placeIndexArn,
+      description: 'AWS Location Service Place Index ARN',
+      exportName: `${props.environment}-LocationPlaceIndexArn`,
     });
   }
 }

@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.983.0",
+    "@aws-sdk/client-location": "^3.984.0",
     "@aws-sdk/client-s3": "^3.972.5",
     "@aws-sdk/credential-provider-node": "^3.972.5",
     "@aws-solutions-constructs/aws-cloudfront-s3": "^2.98.0",

@@ -10,6 +10,8 @@ export interface LambdaConstructProps {
   readonly environment: string;
   readonly opensearchCollectionEndpoint?: string;
   readonly opensearchCollectionArn?: string;
+  readonly placeIndexName?: string;
+  readonly placeIndexArn?: string;
 }
 
 /**
@@ -36,6 +38,11 @@ export class LambdaConstruct extends Construct {
     if (props.opensearchCollectionEndpoint) {
       commonEnvironment.OPENSEARCH_ENDPOINT = props.opensearchCollectionEndpoint;
       commonEnvironment.OPENSEARCH_INDEX = 'paf-addresses';
+    }
+
+    // Add Location Service environment variable if provided
+    if (props.placeIndexName) {
+      commonEnvironment.PLACE_INDEX_NAME = props.placeIndexName;
     }
 
     // PAF Autocomplete Lambda Function using NodejsFunction for TypeScript bundling
@@ -88,10 +95,14 @@ export class LambdaConstruct extends Construct {
       this.pafFunction.addToRolePolicy(opensearchPolicy);
     }
 
-    // Future: Add IAM permissions for AWS Location Service
-    // this.awsLocationFunction.addToRolePolicy(new iam.PolicyStatement({
-    //   actions: ['geo:SearchPlaceIndexForSuggestions'],
-    //   resources: ['arn:aws:geo:*:*:place-index/*'],
-    // }));
+    // Add IAM permissions for AWS Location Service if Place Index ARN is provided
+    if (props.placeIndexArn) {
+      const locationPolicy = new iam.PolicyStatement({
+        actions: ['geo:SearchPlaceIndexForSuggestions'],
+        resources: [props.placeIndexArn],
+      });
+
+      this.awsLocationFunction.addToRolePolicy(locationPolicy);
+    }
   }
 }
