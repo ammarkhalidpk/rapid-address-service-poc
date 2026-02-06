@@ -102,6 +102,12 @@ export class RapidAddressServiceStack extends Stack {
       exportName: `${props.environment}-ApiEndpoint`,
     });
 
+    new CfnOutput(this, 'ApiKeyId', {
+      value: apiConstruct.apiKey.keyId,
+      description: 'API Key ID (use "aws apigateway get-api-key --api-key <id> --include-value" to get the key)',
+      exportName: `${props.environment}-ApiKeyId`,
+    });
+
     new CfnOutput(this, 'PafAutocompleteEndpoint', {
       value: `${apiConstruct.api.url}autocomplete/paf`,
       description: 'PAF autocomplete endpoint',
