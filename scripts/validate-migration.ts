@@ -10,7 +10,12 @@
  * 4. Performance benchmarking for API latency (p95 < 500ms)
  *
  * Usage:
- *   npx ts-node scripts/validate-migration.ts
+ *   API_KEY=<your-api-key> npx ts-node scripts/validate-migration.ts
+ *
+ * Environment Variables:
+ *   API_KEY (required) - API Gateway API key
+ *   OPENSEARCH_ENDPOINT (optional) - Override OpenSearch endpoint
+ *   API_ENDPOINT (optional) - Override API Gateway endpoint
  */
 
 import { Client } from '@opensearch-project/opensearch';
@@ -20,12 +25,20 @@ import axios from 'axios';
 
 const AWS_PROFILE = 'fbdms';
 
+// Validate required environment variables
+const API_KEY = process.env.API_KEY;
+if (!API_KEY) {
+  console.error('ERROR: API_KEY environment variable is required');
+  console.error('Usage: API_KEY=<your-api-key> npx ts-node scripts/validate-migration.ts');
+  process.exit(1);
+}
+
 const CONFIG = {
-  opensearchEndpoint: 'https://xxc3y25wjttu3kt8pv71.ap-southeast-2.aoss.amazonaws.com',
+  opensearchEndpoint: process.env.OPENSEARCH_ENDPOINT || 'https://xxc3y25wjttu3kt8pv71.ap-southeast-2.aoss.amazonaws.com',
   opensearchIndex: 'paf-addresses',
   region: 'ap-southeast-2',
-  apiEndpoint: 'https://f0uo0m26t6.execute-api.ap-southeast-2.amazonaws.com/dev/autocomplete/paf',
-  apiKey: 'fNFMbC6F3dxZ5uD76ntO8yaaFZNuWWc7W1NGeJt2',
+  apiEndpoint: process.env.API_ENDPOINT || 'https://f0uo0m26t6.execute-api.ap-southeast-2.amazonaws.com/dev/autocomplete/paf',
+  apiKey: API_KEY,
   expectedMinRecords: 15_000_000, // 15M records (95%+ of 15.17M)
   p95LatencyThreshold: 500, // milliseconds
 };
