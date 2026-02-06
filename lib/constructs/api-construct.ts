@@ -206,5 +206,40 @@ export class ApiConstruct extends Construct {
         },
       }
     );
+
+    // Create /location resource for AWS Location Service endpoints
+    const locationServiceResource = this.api.root.addResource('location');
+
+    // Location Suggest endpoint: /location/suggest
+    const suggestResource = locationServiceResource.addResource('suggest');
+    suggestResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(props.awsLocationFunction, {
+        proxy: true,
+        integrationResponses: [
+          {
+            statusCode: '200',
+            responseParameters: {
+              'method.response.header.Access-Control-Allow-Origin': "'*'",
+            },
+          },
+        ],
+      }),
+      {
+        apiKeyRequired: true,
+        methodResponses: [
+          {
+            statusCode: '200',
+            responseParameters: {
+              'method.response.header.Access-Control-Allow-Origin': true,
+            },
+          },
+        ],
+        requestParameters: {
+          'method.request.querystring.q': false,
+          'method.request.querystring.query': false,
+        },
+      }
+    );
   }
 }
