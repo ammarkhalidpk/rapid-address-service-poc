@@ -29,8 +29,8 @@ export class DataBucketConstruct extends Construct {
     super(scope, id);
 
     // Create S3 bucket for migration data
+    // Let CDK auto-generate a unique bucket name to avoid conflicts
     this.bucket = new s3.Bucket(this, 'DataBucket', {
-      bucketName: `rapid-address-${props.environment}-data`,
       versioned: false, // Disable versioning for large files
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,

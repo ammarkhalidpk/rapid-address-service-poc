@@ -8,44 +8,15 @@ import { defaultProvider } from '@aws-sdk/credential-provider-node';
  *
  * Creates the paf-addresses index with proper mappings and analyzers
  * for PAF address autocomplete. This is a one-time initialization function.
+ *
+ * Index mappings match the PAF address document structure from the migration:
+ * - delivery_point_id: Unique identifier
+ * - unit, floor, street, street_number, postal_delivery: Nested objects
+ * - locality: Object with id, name, postcode, state
+ * - formatted_address, search_text: Text fields for autocomplete
  */
 
-interface IndexMappings {
-  settings: {
-    index: {
-      number_of_shards: number;
-      number_of_replicas: number;
-    };
-    analysis: {
-      analyzer: {
-        autocomplete_analyzer: {
-          type: string;
-          tokenizer: string;
-          filter: string[];
-        };
-        autocomplete_search_analyzer: {
-          type: string;
-          tokenizer: string;
-          filter: string[];
-        };
-      };
-      filter: {
-        edge_ngram_filter: {
-          type: string;
-          min_gram: number;
-          max_gram: number;
-        };
-      };
-    };
-  };
-  mappings: {
-    properties: {
-      [key: string]: any;
-    };
-  };
-}
-
-const getIndexMappings = (): IndexMappings => ({
+const getIndexMappings = () => ({
   settings: {
     index: {
       number_of_shards: 1,
@@ -75,11 +46,41 @@ const getIndexMappings = (): IndexMappings => ({
   },
   mappings: {
     properties: {
-      udprn: { type: 'keyword' },
-      uprn: { type: 'keyword' },
-      postcode: { type: 'keyword' },
-      post_town: { type: 'keyword' },
-      building_number: { type: 'keyword' },
+      // Primary identifiers
+      delivery_point_id: { type: 'long' },
+      delivery_point_group_id: { type: 'long' },
+
+      // Unit information (e.g., "U 505", "SHOP 45")
+      unit: {
+        type: 'object',
+        properties: {
+          type: { type: 'keyword' },
+          number: { type: 'keyword' },
+          full: {
+            type: 'text',
+            fields: {
+              keyword: { type: 'keyword' },
+            },
+          },
+        },
+      },
+
+      // Floor information (e.g., "L 2", "FLOOR 5")
+      floor: {
+        type: 'object',
+        properties: {
+          type: { type: 'keyword' },
+          number: { type: 'keyword' },
+          full: {
+            type: 'text',
+            fields: {
+              keyword: { type: 'keyword' },
+            },
+          },
+        },
+      },
+
+      // Building name (e.g., "TRINITY ARCADE")
       building_name: {
         type: 'text',
         fields: {
@@ -91,38 +92,109 @@ const getIndexMappings = (): IndexMappings => ({
           },
         },
       },
-      sub_building: {
-        type: 'text',
-        fields: {
-          keyword: { type: 'keyword' },
-        },
-      },
-      street_name: {
-        type: 'text',
-        fields: {
-          keyword: { type: 'keyword' },
-          autocomplete: {
+
+      // Street number (e.g., "123", "1A", "80-100")
+      street_number: {
+        type: 'object',
+        properties: {
+          first: { type: 'integer' },
+          first_suffix: { type: 'keyword' },
+          last: { type: 'integer' },
+          last_suffix: { type: 'keyword' },
+          full: {
             type: 'text',
-            analyzer: 'autocomplete_analyzer',
-            search_analyzer: 'autocomplete_search_analyzer',
+            fields: {
+              keyword: { type: 'keyword' },
+            },
           },
         },
       },
+
+      // Lot number
+      lot_number: { type: 'keyword' },
+
+      // Postal delivery (e.g., "PO BOX 123")
+      postal_delivery: {
+        type: 'object',
+        properties: {
+          type: { type: 'keyword' },
+          number: { type: 'integer' },
+          prefix: { type: 'keyword' },
+          suffix: { type: 'keyword' },
+          full: {
+            type: 'text',
+            fields: {
+              keyword: { type: 'keyword' },
+            },
+          },
+        },
+      },
+
+      // Street information (e.g., "GEORGE", "ST", "NORTH")
+      street: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'text',
+            fields: {
+              keyword: { type: 'keyword' },
+              autocomplete: {
+                type: 'text',
+                analyzer: 'autocomplete_analyzer',
+                search_analyzer: 'autocomplete_search_analyzer',
+              },
+            },
+          },
+          type: { type: 'keyword' },
+          suffix: { type: 'keyword' },
+          full: {
+            type: 'text',
+            fields: {
+              keyword: { type: 'keyword' },
+              autocomplete: {
+                type: 'text',
+                analyzer: 'autocomplete_analyzer',
+                search_analyzer: 'autocomplete_search_analyzer',
+              },
+            },
+          },
+        },
+      },
+
+      // Locality (suburb/city)
       locality: {
-        type: 'text',
-        fields: {
-          keyword: { type: 'keyword' },
+        type: 'object',
+        properties: {
+          id: { type: 'long' },
+          name: {
+            type: 'text',
+            fields: {
+              keyword: { type: 'keyword' },
+              autocomplete: {
+                type: 'text',
+                analyzer: 'autocomplete_analyzer',
+                search_analyzer: 'autocomplete_search_analyzer',
+              },
+            },
+          },
+          postcode: {
+            type: 'keyword',
+            fields: {
+              text: { type: 'text' },
+            },
+          },
+          state: { type: 'keyword' },
         },
       },
-      organisation_name: {
-        type: 'text',
-        fields: {
-          keyword: { type: 'keyword' },
-        },
-      },
+
+      // Primary point indicator
+      primary_point: { type: 'boolean' },
+
+      // Full formatted addresses
       formatted_address: {
         type: 'text',
         fields: {
+          keyword: { type: 'keyword' },
           autocomplete: {
             type: 'text',
             analyzer: 'autocomplete_analyzer',
@@ -130,7 +202,26 @@ const getIndexMappings = (): IndexMappings => ({
           },
         },
       },
-      created_at: { type: 'date' },
+
+      // Short formatted address (street + locality only)
+      formatted_address_short: {
+        type: 'text',
+        fields: {
+          keyword: { type: 'keyword' },
+        },
+      },
+
+      // Concatenated search text for multi-field matching
+      search_text: {
+        type: 'text',
+        fields: {
+          autocomplete: {
+            type: 'text',
+            analyzer: 'autocomplete_analyzer',
+            search_analyzer: 'autocomplete_search_analyzer',
+          },
+        },
+      },
     },
   },
 });
@@ -168,9 +259,21 @@ export const handler: Handler = async (event) => {
 
     // Check if index already exists
     console.log(`Checking if index "${indexName}" exists...`);
-    const indexExists = await client.indices.exists({ index: indexName });
+    let indexExists = false;
+    try {
+      const countResponse = await client.count({ index: indexName });
+      indexExists = true;
+      console.log(`Index "${indexName}" exists with ${countResponse.body.count} documents.`);
+    } catch (error: any) {
+      if (error?.meta?.statusCode === 404) {
+        indexExists = false;
+        console.log(`Index "${indexName}" does not exist.`);
+      } else {
+        throw error;
+      }
+    }
 
-    if (indexExists.body) {
+    if (indexExists) {
       console.log(`Index "${indexName}" already exists. Skipping creation.`);
       return {
         statusCode: 200,

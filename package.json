@@ -26,13 +26,16 @@
     "typescript": "~5.3.3"
   },
   "dependencies": {
+    "@aws-sdk/client-lambda": "^3.983.0",
     "@aws-sdk/client-s3": "^3.972.5",
     "@aws-sdk/credential-provider-node": "^3.972.5",
     "@aws-solutions-constructs/aws-cloudfront-s3": "^2.98.0",
     "@opensearch-project/opensearch": "^3.5.1",
+    "@types/sql.js": "^1.4.9",
     "aws-cdk-lib": "^2.234.0",
     "better-sqlite3": "^11.7.0",
     "constructs": "^10.0.0",
-    "source-map-support": "^0.5.21"
+    "source-map-support": "^0.5.21",
+    "sql.js": "^1.13.0"
   }
 }

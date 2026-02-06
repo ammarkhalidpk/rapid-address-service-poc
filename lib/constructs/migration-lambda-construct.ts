@@ -48,7 +48,7 @@ export class MigrationLambdaConstruct extends Construct {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'handler',
       entry: path.join(__dirname, '../../lambda/data-migration/index.ts'),
-      memorySize: 1024, // 1 GB for batch processing
+      memorySize: 3008, // 3 GB for batch processing and SQLite database handling
       timeout: Duration.seconds(900), // 15 minutes
       ephemeralStorageSize: Size.gibibytes(10), // 10 GB for SQLite database
       logRetention: logs.RetentionDays.ONE_WEEK,
@@ -59,22 +59,9 @@ export class MigrationLambdaConstruct extends Construct {
         LOG_LEVEL: 'INFO',
       },
       bundling: {
-        externalModules: [],
+        externalModules: [], // Bundle all dependencies including sql.js
         minify: true,
         sourceMap: true,
-        nodeModules: ['better-sqlite3'], // Bundle native module
-        commandHooks: {
-          // Ensure better-sqlite3 native bindings are included
-          beforeBundling(inputDir: string, outputDir: string): string[] {
-            return [];
-          },
-          beforeInstall(inputDir: string, outputDir: string): string[] {
-            return [];
-          },
-          afterBundling(inputDir: string, outputDir: string): string[] {
-            return [];
-          },
-        },
       },
     });
 
