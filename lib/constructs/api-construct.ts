@@ -170,5 +170,41 @@ export class ApiConstruct extends Construct {
         },
       }
     );
+
+    // Create /paf resource for new search endpoint
+    const pafSearchResource = this.api.root.addResource('paf');
+
+    // PAF Search endpoint: /paf/search
+    const searchResource = pafSearchResource.addResource('search');
+    searchResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(props.pafFunction, {
+        proxy: true,
+        integrationResponses: [
+          {
+            statusCode: '200',
+            responseParameters: {
+              'method.response.header.Access-Control-Allow-Origin': "'*'",
+            },
+          },
+        ],
+      }),
+      {
+        apiKeyRequired: true,
+        methodResponses: [
+          {
+            statusCode: '200',
+            responseParameters: {
+              'method.response.header.Access-Control-Allow-Origin': true,
+            },
+          },
+        ],
+        requestParameters: {
+          'method.request.querystring.q': false,
+          'method.request.querystring.query': false,
+          'method.request.querystring.limit': false,
+        },
+      }
+    );
   }
 }

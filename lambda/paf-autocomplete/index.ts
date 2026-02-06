@@ -62,16 +62,20 @@ export const handler = async (
     'Access-Control-Allow-Origin': '*',
   };
 
+  const startTime = Date.now();
+
   try {
-    const query = event.queryStringParameters?.query || '';
+    const query = event.queryStringParameters?.q || event.queryStringParameters?.query || '';
     const limit = Math.min(parseInt(event.queryStringParameters?.limit || '10', 10), 50);
 
     if (!query || query.trim().length < 2) {
+      const latencyMs = Date.now() - startTime;
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
           error: 'Query parameter must be at least 2 characters',
+          latencyMs,
         }),
       };
     }
@@ -79,11 +83,13 @@ export const handler = async (
     console.log(`PAF Autocomplete query: "${query}", limit: ${limit}`);
 
     if (!OPENSEARCH_ENDPOINT) {
+      const latencyMs = Date.now() - startTime;
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({
           error: 'OpenSearch endpoint not configured',
+          latencyMs,
         }),
       };
     }
@@ -173,6 +179,8 @@ export const handler = async (
 
     console.log(`PAF Autocomplete returning ${results.length} results`);
 
+    const latencyMs = Date.now() - startTime;
+
     return {
       statusCode: 200,
       headers,
@@ -182,10 +190,13 @@ export const handler = async (
         count: results.length,
         total: response.body.hits.total?.value || results.length,
         source: 'PAF',
+        latencyMs,
       }),
     };
   } catch (error) {
     console.error('PAF Autocomplete error:', error);
+
+    const latencyMs = Date.now() - startTime;
 
     return {
       statusCode: 500,
@@ -193,6 +204,7 @@ export const handler = async (
       body: JSON.stringify({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
+        latencyMs,
       }),
     };
   }
