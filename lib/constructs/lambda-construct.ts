@@ -3,6 +3,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Duration, Tags } from 'aws-cdk-lib';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as path from 'path';
 
 export interface LambdaConstructProps {
@@ -15,7 +16,7 @@ export interface LambdaConstructProps {
  * Lambda Construct
  *
  * Creates the Lambda functions for the Rapid Address Service:
- * - PAF Autocomplete Function
+ * - PAF Autocomplete Function (NodejsFunction with esbuild bundling)
  * - AWS Location Service Autocomplete Function
  */
 export class LambdaConstruct extends Construct {
@@ -37,30 +38,40 @@ export class LambdaConstruct extends Construct {
       commonEnvironment.OPENSEARCH_INDEX = 'paf-addresses';
     }
 
-    const commonLambdaProps = {
+    // PAF Autocomplete Lambda Function using NodejsFunction for TypeScript bundling
+    this.pafFunction = new NodejsFunction(this, 'PafAutocompleteFunction', {
+      functionName: `rapid-address-${props.environment}-paf-autocomplete`,
+      description: 'PAF (Postcode Address File) autocomplete service',
       runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'handler',
+      entry: path.join(__dirname, '../../lambda/paf-autocomplete/index.ts'),
       memorySize: 256,
       timeout: Duration.seconds(30),
       logRetention: logs.RetentionDays.ONE_WEEK,
       environment: commonEnvironment,
-    };
-
-    // PAF Autocomplete Lambda Function
-    this.pafFunction = new lambda.Function(this, 'PafAutocompleteFunction', {
-      ...commonLambdaProps,
-      functionName: `rapid-address-${props.environment}-paf-autocomplete`,
-      description: 'PAF (Postcode Address File) autocomplete service',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda/paf-autocomplete')),
-      handler: 'index.handler',
+      bundling: {
+        externalModules: [],
+        minify: true,
+        sourceMap: true,
+      },
     });
 
     // AWS Location Service Autocomplete Lambda Function
-    this.awsLocationFunction = new lambda.Function(this, 'AwsLocationAutocompleteFunction', {
-      ...commonLambdaProps,
+    this.awsLocationFunction = new NodejsFunction(this, 'AwsLocationAutocompleteFunction', {
       functionName: `rapid-address-${props.environment}-aws-location-autocomplete`,
       description: 'AWS Location Service autocomplete integration',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda/aws-location')),
-      handler: 'index.handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'handler',
+      entry: path.join(__dirname, '../../lambda/aws-location/index.ts'),
+      memorySize: 256,
+      timeout: Duration.seconds(30),
+      logRetention: logs.RetentionDays.ONE_WEEK,
+      environment: commonEnvironment,
+      bundling: {
+        externalModules: [],
+        minify: true,
+        sourceMap: true,
+      },
     });
 
     // Add tags to Lambda functions

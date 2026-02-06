@@ -85,6 +85,7 @@ export const handler: Handler<MigrationEvent, MigrationResponse> = async (event)
 
     // Step 2: Initialize database reader
     dbReader = new DatabaseReader(dbPath);
+    await dbReader.initialize();
     progress.totalRecords = dbReader.getTotalCount();
 
     // Apply max records limit if specified
@@ -97,13 +98,10 @@ export const handler: Handler<MigrationEvent, MigrationResponse> = async (event)
     // Step 3: Initialize OpenSearch indexer
     const indexer = new OpenSearchIndexer(opensearchEndpoint, opensearchIndex, region);
 
-    // Verify index exists
-    const indexExists = await indexer.indexExists();
-    if (!indexExists) {
-      throw new Error(
-        `OpenSearch index "${opensearchIndex}" does not exist. Please run the initialization Lambda first.`
-      );
-    }
+    // Skip index existence check - assume init Lambda has already created the index
+    // This avoids permission issues with indices.exists API on OpenSearch Serverless
+    console.log(`Assuming index "${opensearchIndex}" exists (pre-created by init Lambda)`);
+    console.log('If indexing fails with "index not found", run the init Lambda first.');
 
     // Step 4: Process records in batches
     let currentOffset = startOffset;

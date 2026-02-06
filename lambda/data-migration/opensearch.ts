@@ -131,15 +131,25 @@ export class OpenSearchIndexer {
   }
 
   /**
-   * Check if index exists
+   * Check if index exists by attempting a document count
+   * Uses count API instead of indices.exists which requires additional permissions
    */
   async indexExists(): Promise<boolean> {
     try {
-      const response = await this.client.indices.exists({ index: this.indexName });
-      return response.body === true;
-    } catch (error) {
+      // Try to get document count - this will fail if index doesn't exist
+      const response = await this.client.count({ index: this.indexName });
+      console.log(`Index exists, current document count: ${response.body.count}`);
+      return true;
+    } catch (error: any) {
+      // Check if error is "index not found" (404) vs permission denied (403)
+      if (error?.meta?.statusCode === 404) {
+        console.log(`Index ${this.indexName} does not exist`);
+        return false;
+      }
+      // For 403 or other errors, assume index might exist but we don't have permission
+      // Log and re-throw to handle in caller
       console.error('Error checking index existence:', error);
-      return false;
+      throw error;
     }
   }
 

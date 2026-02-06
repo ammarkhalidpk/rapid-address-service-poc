@@ -18,9 +18,11 @@ export interface ApiConstructProps {
  * - /autocomplete/location endpoint (AWS Location Service)
  * - CORS enabled for all origins (POC)
  * - CloudWatch logging enabled
+ * - API Key authentication required
  */
 export class ApiConstruct extends Construct {
   public readonly api: apigateway.RestApi;
+  public readonly apiKey: apigateway.ApiKey;
 
   constructor(scope: Construct, id: string, props: ApiConstructProps) {
     super(scope, id);
@@ -71,6 +73,36 @@ export class ApiConstruct extends Construct {
       cloudWatchRole: true,
     });
 
+    // Create API Key
+    this.apiKey = new apigateway.ApiKey(this, 'RapidAddressApiKey', {
+      apiKeyName: `rapid-address-${props.environment}-key`,
+      description: 'API Key for Rapid Address Service',
+      enabled: true,
+    });
+
+    // Create Usage Plan with throttling and quota
+    const usagePlan = new apigateway.UsagePlan(this, 'RapidAddressUsagePlan', {
+      name: `rapid-address-${props.environment}-usage-plan`,
+      description: 'Usage plan for Rapid Address Service API',
+      throttle: {
+        rateLimit: 100,
+        burstLimit: 200,
+      },
+      quota: {
+        limit: 10000,
+        period: apigateway.Period.DAY,
+      },
+      apiStages: [
+        {
+          api: this.api,
+          stage: this.api.deploymentStage,
+        },
+      ],
+    });
+
+    // Associate API Key with Usage Plan
+    usagePlan.addApiKey(this.apiKey);
+
     // Create /autocomplete resource
     const autocompleteResource = this.api.root.addResource('autocomplete');
 
@@ -90,6 +122,7 @@ export class ApiConstruct extends Construct {
         ],
       }),
       {
+        apiKeyRequired: true,
         methodResponses: [
           {
             statusCode: '200',
@@ -121,6 +154,7 @@ export class ApiConstruct extends Construct {
         ],
       }),
       {
+        apiKeyRequired: true,
         methodResponses: [
           {
             statusCode: '200',

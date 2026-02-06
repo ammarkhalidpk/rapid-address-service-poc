@@ -153,6 +153,8 @@ export class OpenSearchConstruct extends Construct {
     initLambdaRoleArn: string,
     migrationLambdaRoleArn: string
   ): void {
+    // User ARN for local script access during development
+    const developerUserArn = 'arn:aws:iam::480399101976:user/ams';
     // 1. Read-Only Policy for PAF Lambda (public-facing API)
     const readOnlyPolicy = new opensearchserverless.CfnAccessPolicy(
       this,
@@ -216,7 +218,7 @@ export class OpenSearchConstruct extends Construct {
                 ],
               },
             ],
-            Principal: [initLambdaRoleArn],
+            Principal: [initLambdaRoleArn, developerUserArn],
           },
         ]),
       }
@@ -251,7 +253,7 @@ export class OpenSearchConstruct extends Construct {
                 ],
               },
             ],
-            Principal: [migrationLambdaRoleArn],
+            Principal: [migrationLambdaRoleArn, developerUserArn],
           },
         ]),
       }
