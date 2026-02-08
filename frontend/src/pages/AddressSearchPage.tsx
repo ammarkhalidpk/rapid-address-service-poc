@@ -1,154 +1,85 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { SearchInput } from '@/components/search/SearchInput';
 import { ResultsDropdown } from '@/components/search/ResultsDropdown';
 import { ComparisonView } from '@/components/comparison/ComparisonView';
 import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard';
+import { ModeToggle } from '@/components/mode-toggle/ModeToggle';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAddressSearch } from '@/hooks/useAddressSearch';
+import { useSearchMode } from '@/hooks/useSearchMode';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import type { AnalyticsEntry } from '@/types/analytics.types';
 import type { PafAddressResult, LocationResult } from '@/types';
 
 export function AddressSearchPage() {
+  const { mode } = useSearchMode();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsEntry[]>([]);
-  const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [focusedSource, setFocusedSource] = useState<'paf' | 'aws'>('paf');
 
   const debouncedQuery = useDebounce(searchQuery, 300);
 
   const { pafData, awsData, isPafLoading, isAwsLoading, pafError, awsError, isAnyLoading } = useAddressSearch({
     query: debouncedQuery,
     limit: 10,
+    mode,
   });
 
-  // Open dropdown when there's a query
-  useEffect(() => {
-    if (debouncedQuery.length >= 3) {
-      setIsDropdownOpen(true);
-    } else {
-      setIsDropdownOpen(false);
-      setSelectedIndex(-1);
-    }
-  }, [debouncedQuery]);
+  // Derive dropdown open state from query length
+  const isDropdownOpen = useMemo(() => debouncedQuery.length >= 3, [debouncedQuery]);
 
-  // Reset selection when query changes
-  useEffect(() => {
-    setSelectedIndex(-1);
-    setFocusedSource('paf');
-  }, [debouncedQuery]);
+  const handleResultSelect = useCallback((result: PafAddressResult | LocationResult, source: 'paf' | 'aws') => {
+    console.log('Selected result:', result, 'from', source);
+    // TODO: Future enhancement - populate form fields with selected address
+  }, []);
 
-  // Capture analytics when both queries complete successfully
+  // Use extracted keyboard navigation hook
+  const { selectedIndex, focusedSource } = useKeyboardNavigation({
+    isDropdownOpen,
+    mode,
+    pafData,
+    awsData,
+    debouncedQuery,
+    onResultSelect: handleResultSelect,
+  });
+
+  // Track analytics - ref to deduplicate entries
+  const lastTrackedQueryRef = useRef<string>('');
+
+  // Capture analytics when data arrives for the active mode.
+  // This is a synchronization effect responding to external data (API responses).
   useEffect(() => {
-    if (pafData && awsData && debouncedQuery.length >= 3) {
-      const entry: AnalyticsEntry = {
+    if (debouncedQuery.length < 3) return;
+
+    const trackingKey = `${mode}-${debouncedQuery}`;
+    if (lastTrackedQueryRef.current === trackingKey) return;
+
+    if (mode === 'paf' && pafData) {
+      lastTrackedQueryRef.current = trackingKey;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAnalyticsData((prev) => [...prev, {
         timestamp: Date.now(),
         query: debouncedQuery,
         pafLatency: pafData.latencyMs,
-        awsLatency: awsData.latencyMs,
+        awsLatency: 0,
         pafResultCount: pafData.count,
+        awsResultCount: 0,
+        awsCost: 0,
+      }]);
+    }
+
+    if (mode === 'location' && awsData) {
+      lastTrackedQueryRef.current = trackingKey;
+      setAnalyticsData((prev) => [...prev, {
+        timestamp: Date.now(),
+        query: debouncedQuery,
+        pafLatency: 0,
+        awsLatency: awsData.latencyMs,
+        pafResultCount: 0,
         awsResultCount: awsData.count,
         awsCost: awsData.estimatedCost,
-      };
-
-      setAnalyticsData((prev) => {
-        // Avoid duplicate entries for the same query/timestamp
-        const lastEntry = prev[prev.length - 1];
-        if (lastEntry && lastEntry.query === entry.query && lastEntry.timestamp === entry.timestamp) {
-          return prev;
-        }
-        return [...prev, entry];
-      });
+      }]);
     }
-  }, [pafData, awsData, debouncedQuery]);
-
-  // Keyboard navigation handlers
-  const navigateDown = () => {
-    const maxIndex = focusedSource === 'paf'
-      ? (pafData?.results.length || 0) - 1
-      : (awsData?.results.length || 0) - 1;
-
-    if (maxIndex >= 0) {
-      setSelectedIndex((prev) => (prev < maxIndex ? prev + 1 : 0));
-    }
-  };
-
-  const navigateUp = () => {
-    const maxIndex = focusedSource === 'paf'
-      ? (pafData?.results.length || 0) - 1
-      : (awsData?.results.length || 0) - 1;
-
-    if (maxIndex >= 0) {
-      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : maxIndex));
-    }
-  };
-
-  const switchColumn = () => {
-    const hasResults = focusedSource === 'paf'
-      ? (awsData?.results.length || 0) > 0
-      : (pafData?.results.length || 0) > 0;
-
-    if (hasResults) {
-      setFocusedSource((prev) => (prev === 'paf' ? 'aws' : 'paf'));
-      setSelectedIndex(0);
-    }
-  };
-
-  const selectCurrentResult = () => {
-    if (selectedIndex < 0) return;
-
-    const result = focusedSource === 'paf'
-      ? pafData?.results[selectedIndex]
-      : awsData?.results[selectedIndex];
-
-    if (result) {
-      handleResultSelect(result, focusedSource);
-    }
-  };
-
-  const closeDropdown = () => {
-    setIsDropdownOpen(false);
-    setSelectedIndex(-1);
-  };
-
-  const handleResultSelect = (result: PafAddressResult | LocationResult, source: 'paf' | 'aws') => {
-    console.log('Selected result:', result, 'from', source);
-    // TODO: Future enhancement - populate form fields with selected address
-    closeDropdown();
-  };
-
-  // Keyboard event listener
-  useEffect(() => {
-    if (!isDropdownOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault();
-          navigateDown();
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          navigateUp();
-          break;
-        case 'Tab':
-          e.preventDefault();
-          switchColumn();
-          break;
-        case 'Enter':
-          e.preventDefault();
-          selectCurrentResult();
-          break;
-        case 'Escape':
-          e.preventDefault();
-          closeDropdown();
-          break;
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isDropdownOpen, selectedIndex, focusedSource, pafData, awsData]);
+  }, [mode, pafData, awsData, debouncedQuery]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -159,6 +90,11 @@ export function AddressSearchPage() {
           <p className="text-lg text-muted-foreground">
             Compare PAF Database and AWS Location Service performance
           </p>
+        </div>
+
+        {/* Mode Toggle */}
+        <div className="mb-6 flex justify-center">
+          <ModeToggle />
         </div>
 
         {/* Search Section */}
@@ -179,10 +115,11 @@ export function AddressSearchPage() {
               pafError={pafError}
               awsError={awsError}
               isOpen={isDropdownOpen}
-              onClose={closeDropdown}
+              onClose={() => setSearchQuery('')}
               selectedIndex={selectedIndex}
               focusedSource={focusedSource}
               onResultSelect={handleResultSelect}
+              mode={mode}
             />
           </div>
           {debouncedQuery.length > 0 && debouncedQuery.length < 3 && (
