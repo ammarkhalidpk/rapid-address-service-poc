@@ -72,9 +72,9 @@ export function ResultsDropdown({
   const showAwsError = awsError && !isAwsLoading;
 
   // Determine if single-column layout should be used
-  const isSingleColumn = mode !== undefined;
-  const showPaf = !mode || mode === 'paf';
-  const showAws = !mode || mode === 'location';
+  const isSingleColumn = mode === 'paf' || mode === 'location';
+  const showPaf = !mode || mode === 'paf' || mode === 'both';
+  const showAws = !mode || mode === 'location' || mode === 'both';
 
   return (
     <Card

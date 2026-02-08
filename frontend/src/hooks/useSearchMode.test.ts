@@ -8,9 +8,9 @@ describe('useSearchMode', () => {
     localStorage.clear();
   });
 
-  it('should default to paf mode', () => {
+  it('should default to both mode', () => {
     const { result } = renderHook(() => useSearchMode());
-    expect(result.current.mode).toBe('paf');
+    expect(result.current.mode).toBe('both');
   });
 
   it('should persist mode to localStorage', () => {
@@ -28,10 +28,16 @@ describe('useSearchMode', () => {
     expect(result.current.mode).toBe('location');
   });
 
+  it('should load both mode from localStorage', () => {
+    localStorage.setItem(SEARCH_MODE_STORAGE_KEY, 'both');
+    const { result } = renderHook(() => useSearchMode());
+    expect(result.current.mode).toBe('both');
+  });
+
   it('should handle invalid localStorage value', () => {
     localStorage.setItem(SEARCH_MODE_STORAGE_KEY, 'invalid');
     const { result } = renderHook(() => useSearchMode());
-    expect(result.current.mode).toBe('paf'); // fallback to default
+    expect(result.current.mode).toBe('both'); // fallback to default
   });
 
   it('should handle localStorage getItem errors gracefully', () => {
@@ -42,7 +48,7 @@ describe('useSearchMode', () => {
     });
 
     const { result } = renderHook(() => useSearchMode());
-    expect(result.current.mode).toBe('paf'); // graceful fallback
+    expect(result.current.mode).toBe('both'); // graceful fallback
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       'Failed to read search mode from localStorage:',
       expect.any(Error)
@@ -76,9 +82,14 @@ describe('useSearchMode', () => {
     consoleWarnSpy.mockRestore();
   });
 
-  it('should switch between modes correctly', () => {
+  it('should switch between all three modes correctly', () => {
     const { result } = renderHook(() => useSearchMode());
 
+    expect(result.current.mode).toBe('both');
+
+    act(() => {
+      result.current.setMode('paf');
+    });
     expect(result.current.mode).toBe('paf');
 
     act(() => {
@@ -87,8 +98,8 @@ describe('useSearchMode', () => {
     expect(result.current.mode).toBe('location');
 
     act(() => {
-      result.current.setMode('paf');
+      result.current.setMode('both');
     });
-    expect(result.current.mode).toBe('paf');
+    expect(result.current.mode).toBe('both');
   });
 });

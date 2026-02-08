@@ -53,9 +53,20 @@ export function AddressSearchPage() {
     const trackingKey = `${mode}-${debouncedQuery}`;
     if (lastTrackedQueryRef.current === trackingKey) return;
 
-    if (mode === 'paf' && pafData) {
+    if (mode === 'both' && pafData && awsData) {
       lastTrackedQueryRef.current = trackingKey;
       // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAnalyticsData((prev) => [...prev, {
+        timestamp: Date.now(),
+        query: debouncedQuery,
+        pafLatency: pafData.latencyMs,
+        awsLatency: awsData.latencyMs,
+        pafResultCount: pafData.count,
+        awsResultCount: awsData.count,
+        awsCost: awsData.estimatedCost,
+      }]);
+    } else if (mode === 'paf' && pafData) {
+      lastTrackedQueryRef.current = trackingKey;
       setAnalyticsData((prev) => [...prev, {
         timestamp: Date.now(),
         query: debouncedQuery,
@@ -65,9 +76,7 @@ export function AddressSearchPage() {
         awsResultCount: 0,
         awsCost: 0,
       }]);
-    }
-
-    if (mode === 'location' && awsData) {
+    } else if (mode === 'location' && awsData) {
       lastTrackedQueryRef.current = trackingKey;
       setAnalyticsData((prev) => [...prev, {
         timestamp: Date.now(),

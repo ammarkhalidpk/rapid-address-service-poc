@@ -10,7 +10,7 @@ interface UseSearchModeReturn {
  * Type guard to validate if a value is a valid SearchMode
  */
 function isValidMode(value: string): value is SearchMode {
-  return value === 'paf' || value === 'location';
+  return value === 'paf' || value === 'location' || value === 'both';
 }
 
 /**

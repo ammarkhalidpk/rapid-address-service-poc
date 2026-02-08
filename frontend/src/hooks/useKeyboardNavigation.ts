@@ -24,7 +24,7 @@ export function useKeyboardNavigation({
   debouncedQuery,
   onResultSelect,
 }: UseKeyboardNavigationParams): UseKeyboardNavigationReturn {
-  const defaultSource = mode === 'location' ? 'aws' as const : 'paf' as const;
+  const defaultSource = mode === 'location' ? 'aws' as const : 'paf' as const; // 'both' defaults to 'paf'
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [focusedSource, setFocusedSource] = useState<'paf' | 'aws'>(defaultSource);
 
@@ -33,7 +33,7 @@ export function useKeyboardNavigation({
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setSelectedIndex(-1); }, [debouncedQuery, mode]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setFocusedSource(mode === 'location' ? 'aws' : 'paf'); }, [mode]);
+  useEffect(() => { setFocusedSource(mode === 'location' ? 'aws' : 'paf'); }, [mode]); // 'both' defaults to 'paf'
 
   const navigateDown = useCallback(() => {
     const maxIndex = focusedSource === 'paf'
@@ -56,8 +56,8 @@ export function useKeyboardNavigation({
   }, [focusedSource, pafData, awsData]);
 
   const switchColumn = useCallback(() => {
-    // Disable column switching in single-mode
-    if (mode) return;
+    // Disable column switching in single-source mode
+    if (mode !== 'both') return;
 
     const hasResults = focusedSource === 'paf'
       ? (awsData?.results.length || 0) > 0

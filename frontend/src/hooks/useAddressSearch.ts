@@ -29,8 +29,8 @@ interface UseAddressSearchReturn {
  */
 export function useAddressSearch({ query, limit = 10, mode }: UseAddressSearchParams): UseAddressSearchReturn {
   const baseEnabled = query.length >= 3;
-  const pafEnabled = baseEnabled && mode === 'paf';
-  const awsEnabled = baseEnabled && mode === 'location';
+  const pafEnabled = baseEnabled && (mode === 'paf' || mode === 'both');
+  const awsEnabled = baseEnabled && (mode === 'location' || mode === 'both');
 
   const {
     data: pafData,

@@ -8,18 +8,21 @@ describe('ModeToggle', () => {
     localStorage.clear();
   });
 
-  it('should render both mode buttons', () => {
+  it('should render all three mode buttons', () => {
     render(<ModeToggle />);
+    expect(screen.getByText(/Both/i)).toBeInTheDocument();
     expect(screen.getByText(/PAF Database/i)).toBeInTheDocument();
     expect(screen.getByText(/AWS Location/i)).toBeInTheDocument();
   });
 
-  it('should highlight PAF mode by default', () => {
+  it('should highlight Both mode by default', () => {
     render(<ModeToggle />);
+    const bothButton = screen.getByRole('radio', { name: /Both/i });
     const pafButton = screen.getByRole('radio', { name: /PAF Database/i });
     const locationButton = screen.getByRole('radio', { name: /AWS Location/i });
 
-    expect(pafButton).toHaveAttribute('aria-checked', 'true');
+    expect(bothButton).toHaveAttribute('aria-checked', 'true');
+    expect(pafButton).toHaveAttribute('aria-checked', 'false');
     expect(locationButton).toHaveAttribute('aria-checked', 'false');
   });
 
@@ -33,19 +36,27 @@ describe('ModeToggle', () => {
     expect(localStorage.getItem(SEARCH_MODE_STORAGE_KEY)).toBe('location');
   });
 
-  it('should switch back to PAF mode', () => {
+  it('should switch to PAF mode', () => {
     render(<ModeToggle />);
     const pafButton = screen.getByRole('radio', { name: /PAF Database/i });
-    const locationButton = screen.getByRole('radio', { name: /AWS Location/i });
 
-    // Click location first
-    fireEvent.click(locationButton);
-    expect(locationButton).toHaveAttribute('aria-checked', 'true');
-
-    // Click PAF
     fireEvent.click(pafButton);
+
     expect(pafButton).toHaveAttribute('aria-checked', 'true');
     expect(localStorage.getItem(SEARCH_MODE_STORAGE_KEY)).toBe('paf');
+  });
+
+  it('should switch back to Both mode', () => {
+    render(<ModeToggle />);
+    const pafButton = screen.getByRole('radio', { name: /PAF Database/i });
+    const bothButton = screen.getByRole('radio', { name: /Both/i });
+
+    fireEvent.click(pafButton);
+    expect(pafButton).toHaveAttribute('aria-checked', 'true');
+
+    fireEvent.click(bothButton);
+    expect(bothButton).toHaveAttribute('aria-checked', 'true');
+    expect(localStorage.getItem(SEARCH_MODE_STORAGE_KEY)).toBe('both');
   });
 
   it('should have accessible ARIA attributes', () => {
@@ -53,11 +64,8 @@ describe('ModeToggle', () => {
     const container = screen.getByRole('radiogroup');
     expect(container).toHaveAttribute('aria-label', 'Select search data source');
 
-    const pafButton = screen.getByRole('radio', { name: /PAF Database/i });
-    const locationButton = screen.getByRole('radio', { name: /AWS Location/i });
-
-    expect(pafButton).toHaveAttribute('role', 'radio');
-    expect(locationButton).toHaveAttribute('role', 'radio');
+    const buttons = screen.getAllByRole('radio');
+    expect(buttons).toHaveLength(3);
   });
 
   it('should persist selection across re-renders', () => {
