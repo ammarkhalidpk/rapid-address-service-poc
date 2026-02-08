@@ -3,12 +3,15 @@ import { SearchInput } from '@/components/search/SearchInput';
 import { ResultsDropdown } from '@/components/search/ResultsDropdown';
 import { ComparisonView } from '@/components/comparison/ComparisonView';
 import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard';
+import { ModeToggle } from '@/components/mode-toggle/ModeToggle';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAddressSearch } from '@/hooks/useAddressSearch';
+import { useSearchMode } from '@/hooks/useSearchMode';
 import type { AnalyticsEntry } from '@/types/analytics.types';
 import type { PafAddressResult, LocationResult } from '@/types';
 
 export function AddressSearchPage() {
+  const { mode } = useSearchMode();
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsEntry[]>([]);
@@ -20,6 +23,7 @@ export function AddressSearchPage() {
   const { pafData, awsData, isPafLoading, isAwsLoading, pafError, awsError, isAnyLoading } = useAddressSearch({
     query: debouncedQuery,
     limit: 10,
+    mode,
   });
 
   // Open dropdown when there's a query
@@ -32,21 +36,44 @@ export function AddressSearchPage() {
     }
   }, [debouncedQuery]);
 
-  // Reset selection when query changes
+  // Reset selection when query changes or mode changes
   useEffect(() => {
     setSelectedIndex(-1);
-    setFocusedSource('paf');
-  }, [debouncedQuery]);
+    setFocusedSource(mode === 'location' ? 'aws' : 'paf');
+  }, [debouncedQuery, mode]);
 
-  // Capture analytics when both queries complete successfully
+  // Capture analytics based on active mode
   useEffect(() => {
-    if (pafData && awsData && debouncedQuery.length >= 3) {
+    if (debouncedQuery.length < 3) return;
+
+    if (mode === 'paf' && pafData) {
       const entry: AnalyticsEntry = {
         timestamp: Date.now(),
         query: debouncedQuery,
         pafLatency: pafData.latencyMs,
-        awsLatency: awsData.latencyMs,
+        awsLatency: 0,
         pafResultCount: pafData.count,
+        awsResultCount: 0,
+        awsCost: 0,
+      };
+
+      setAnalyticsData((prev) => {
+        // Avoid duplicate entries for the same query/timestamp
+        const lastEntry = prev[prev.length - 1];
+        if (lastEntry && lastEntry.query === entry.query && lastEntry.timestamp === entry.timestamp) {
+          return prev;
+        }
+        return [...prev, entry];
+      });
+    }
+
+    if (mode === 'location' && awsData) {
+      const entry: AnalyticsEntry = {
+        timestamp: Date.now(),
+        query: debouncedQuery,
+        pafLatency: 0,
+        awsLatency: awsData.latencyMs,
+        pafResultCount: 0,
         awsResultCount: awsData.count,
         awsCost: awsData.estimatedCost,
       };
@@ -60,7 +87,7 @@ export function AddressSearchPage() {
         return [...prev, entry];
       });
     }
-  }, [pafData, awsData, debouncedQuery]);
+  }, [mode, pafData, awsData, debouncedQuery]);
 
   // Keyboard navigation handlers
   const navigateDown = () => {
@@ -84,6 +111,9 @@ export function AddressSearchPage() {
   };
 
   const switchColumn = () => {
+    // Disable column switching in single-mode
+    if (mode) return;
+
     const hasResults = focusedSource === 'paf'
       ? (awsData?.results.length || 0) > 0
       : (pafData?.results.length || 0) > 0;
@@ -161,6 +191,11 @@ export function AddressSearchPage() {
           </p>
         </div>
 
+        {/* Mode Toggle */}
+        <div className="mb-6 flex justify-center">
+          <ModeToggle />
+        </div>
+
         {/* Search Section */}
         <div className="mb-8 max-w-3xl mx-auto">
           <div className="relative">
@@ -183,6 +218,7 @@ export function AddressSearchPage() {
               selectedIndex={selectedIndex}
               focusedSource={focusedSource}
               onResultSelect={handleResultSelect}
+              mode={mode}
             />
           </div>
           {debouncedQuery.length > 0 && debouncedQuery.length < 3 && (
