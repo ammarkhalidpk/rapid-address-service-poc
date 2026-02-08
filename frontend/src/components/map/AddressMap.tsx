@@ -71,18 +71,20 @@ export function AddressMap({ pins, isLoading }: AddressMapProps) {
 
     if (pins.length === 0) return;
 
-    const bounds = L.latLngBounds([]);
-
     pins.forEach((pin) => {
       const icon = pin.source === 'paf' ? pafIcon : awsIcon;
       const sourceLabel = pin.source === 'paf' ? 'PAF' : 'AWS';
 
       const marker = L.marker([pin.lat, pin.lng], { icon }).addTo(map);
       marker.bindPopup(`<strong>${sourceLabel}</strong><br/>${pin.label}`);
-      bounds.extend([pin.lat, pin.lng]);
     });
 
-    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+    // Prefer fitting to AWS pins (more location-relevant to search query),
+    // fall back to all pins if no AWS results
+    const awsPins = pins.filter((p) => p.source === 'aws');
+    const fitPins = awsPins.length > 0 ? awsPins : pins;
+    const bounds = L.latLngBounds(fitPins.map((p) => [p.lat, p.lng]));
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
   }, [pins]);
 
   return (

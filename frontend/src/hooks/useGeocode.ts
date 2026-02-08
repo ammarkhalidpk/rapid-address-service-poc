@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { PafAddressResult, LocationResult } from '@/types';
 
 export interface GeocodedPin {
@@ -14,12 +14,23 @@ interface GeocodeCache {
 
 const cache: GeocodeCache = {};
 
+function cleanAddress(address: string): string {
+  // Remove country suffix (AUS, Australia) and strip commas for better Nominatim results
+  return address
+    .replace(/,?\s*\bAUS\b$/i, '')
+    .replace(/,?\s*\bAustralia\b$/i, '')
+    .replace(/,/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
   if (cache[address] !== undefined) return cache[address];
 
+  const cleaned = cleanAddress(address);
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&countrycodes=au&limit=1&q=${encodeURIComponent(address)}`,
+      `https://nominatim.openstreetmap.org/search?format=json&countrycodes=au&limit=1&q=${encodeURIComponent(cleaned)}`,
       { headers: { 'User-Agent': 'RapidAddressServicePOC/1.0' } }
     );
     const data = await res.json();
@@ -43,6 +54,47 @@ export function useGeocode(
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef(0);
 
+  const geocodeAll = useCallback(async (
+    pafSlice: PafAddressResult[],
+    awsSlice: LocationResult[],
+    requestId: number,
+  ) => {
+    const results: GeocodedPin[] = [];
+
+    // Geocode AWS first - they're more location-relevant to the search query
+    for (const result of awsSlice) {
+      if (abortRef.current !== requestId) return;
+      const wasCached = cache[result.text] !== undefined;
+      const coords = await geocodeAddress(result.text);
+      if (coords) {
+        results.push({ ...coords, label: result.text, source: 'aws' });
+      }
+      if (!wasCached) await new Promise((r) => setTimeout(r, 1100));
+    }
+
+    // Update pins after AWS geocoding so map zooms to the relevant area
+    if (abortRef.current === requestId && results.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPins([...results]);
+    }
+
+    // Then geocode PAF results
+    for (const result of pafSlice) {
+      if (abortRef.current !== requestId) return;
+      const wasCached = cache[result.address] !== undefined;
+      const coords = await geocodeAddress(result.address);
+      if (coords) {
+        results.push({ ...coords, label: result.addressShort || result.address, source: 'paf' });
+      }
+      if (!wasCached) await new Promise((r) => setTimeout(r, 1100));
+    }
+
+    if (abortRef.current === requestId) {
+      setPins([...results]);
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const allPaf = pafResults ?? [];
     const allAws = awsResults ?? [];
@@ -55,40 +107,8 @@ export function useGeocode(
     const requestId = ++abortRef.current;
     setIsLoading(true);
 
-    async function run() {
-      const results: GeocodedPin[] = [];
-
-      // Geocode top 5 from each source (Nominatim rate limit: 1 req/sec)
-      const pafSlice = allPaf.slice(0, 5);
-      const awsSlice = allAws.slice(0, 5);
-
-      for (const result of pafSlice) {
-        if (abortRef.current !== requestId) return;
-        const coords = await geocodeAddress(result.address);
-        if (coords) {
-          results.push({ ...coords, label: result.addressShort || result.address, source: 'paf' });
-        }
-        // Respect Nominatim rate limit unless cached
-        if (!cache[result.address]) await new Promise((r) => setTimeout(r, 1100));
-      }
-
-      for (const result of awsSlice) {
-        if (abortRef.current !== requestId) return;
-        const coords = await geocodeAddress(result.text);
-        if (coords) {
-          results.push({ ...coords, label: result.text, source: 'aws' });
-        }
-        if (!cache[result.text]) await new Promise((r) => setTimeout(r, 1100));
-      }
-
-      if (abortRef.current === requestId) {
-        setPins(results);
-        setIsLoading(false);
-      }
-    }
-
-    run();
-  }, [pafResults, awsResults]);
+    geocodeAll(allPaf.slice(0, 5), allAws.slice(0, 5), requestId);
+  }, [pafResults, awsResults, geocodeAll]);
 
   return { pins, isLoading };
 }
