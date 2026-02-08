@@ -66,9 +66,9 @@ export function ComparisonMetrics({ pafData, awsData }: ComparisonMetricsProps) 
         />
 
         <MetricCard
-          title="Completeness Winner"
-          value={metrics.moreCompleteService.toUpperCase()}
-          subtitle={`+${metrics.completenessDifference.toFixed(0)}% more complete`}
+          title="Data Richness"
+          value={`${pafAvgFieldsComplete.toFixed(1)} vs ${awsAvgFieldsComplete.toFixed(1)}`}
+          subtitle={`PAF: ${pafFieldCount} fields, AWS: ${awsFieldCount} fields`}
         />
 
         {/* Result Count Metrics */}

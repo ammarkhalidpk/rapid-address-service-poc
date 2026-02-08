@@ -85,7 +85,9 @@ export function AwsResultList({ results }: AwsResultListProps) {
                   {completeness.toFixed(0)}%
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground font-mono">{result.placeId}</p>
+              <p className="text-xs text-muted-foreground font-mono truncate" title={result.placeId}>
+                {result.placeId.slice(0, 16)}...
+              </p>
             </div>
           );
         })}

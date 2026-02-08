@@ -13,7 +13,7 @@ import type { PafAddressResult, LocationResult } from '@/types';
 
 export function AddressSearchPage() {
   const { mode } = useSearchMode();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQueryRaw] = useState('');
   const [analyticsData, setAnalyticsData] = useState<AnalyticsEntry[]>([]);
 
   const debouncedQuery = useDebounce(searchQuery, 300);
@@ -24,11 +24,23 @@ export function AddressSearchPage() {
     mode,
   });
 
-  // Derive dropdown open state from query length
-  const isDropdownOpen = useMemo(() => debouncedQuery.length >= 3, [debouncedQuery]);
+  // Track whether the dropdown has been dismissed (e.g., user selected a result)
+  const [isDropdownDismissed, setIsDropdownDismissed] = useState(false);
+
+  // Wrap setSearchQuery to re-open dropdown when user types
+  const setSearchQuery = useCallback((query: string) => {
+    setSearchQueryRaw(query);
+    if (query.length > 0) {
+      setIsDropdownDismissed(false);
+    }
+  }, []);
+
+  // Derive dropdown open state from query length + dismissal
+  const isDropdownOpen = useMemo(() => debouncedQuery.length >= 3 && !isDropdownDismissed, [debouncedQuery, isDropdownDismissed]);
 
   const handleResultSelect = useCallback((result: PafAddressResult | LocationResult, source: 'paf' | 'aws') => {
     console.log('Selected result:', result, 'from', source);
+    setIsDropdownDismissed(true);
     // TODO: Future enhancement - populate form fields with selected address
   }, []);
 
@@ -124,7 +136,7 @@ export function AddressSearchPage() {
               pafError={pafError}
               awsError={awsError}
               isOpen={isDropdownOpen}
-              onClose={() => setSearchQuery('')}
+              onClose={() => setIsDropdownDismissed(true)}
               selectedIndex={selectedIndex}
               focusedSource={focusedSource}
               onResultSelect={handleResultSelect}
@@ -138,8 +150,8 @@ export function AddressSearchPage() {
           )}
         </div>
 
-        {/* Comparison View */}
-        {(pafData || awsData) && (
+        {/* Comparison View - hidden while dropdown is open to avoid overlap */}
+        {(pafData || awsData) && !isDropdownOpen && (
           <div className="mb-8">
             <ComparisonView pafData={pafData} awsData={awsData} />
           </div>
