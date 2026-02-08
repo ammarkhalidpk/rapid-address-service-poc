@@ -3,11 +3,13 @@ import { SearchInput } from '@/components/search/SearchInput';
 import { ResultsDropdown } from '@/components/search/ResultsDropdown';
 import { ComparisonView } from '@/components/comparison/ComparisonView';
 import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard';
+import { AddressMap } from '@/components/map/AddressMap';
 import { ModeToggle } from '@/components/mode-toggle/ModeToggle';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAddressSearch } from '@/hooks/useAddressSearch';
 import { useSearchMode } from '@/hooks/useSearchMode';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
+import { useGeocode } from '@/hooks/useGeocode';
 import type { AnalyticsEntry } from '@/types/analytics.types';
 import type { PafAddressResult, LocationResult } from '@/types';
 
@@ -23,6 +25,8 @@ export function AddressSearchPage() {
     limit: 10,
     mode,
   });
+
+  const { pins, isLoading: isGeocodingLoading } = useGeocode(pafData?.results, awsData?.results);
 
   // Track whether the dropdown has been dismissed (e.g., user selected a result)
   const [isDropdownDismissed, setIsDropdownDismissed] = useState(false);
@@ -154,6 +158,13 @@ export function AddressSearchPage() {
         {(pafData || awsData) && !isDropdownOpen && (
           <div className="mb-8">
             <ComparisonView pafData={pafData} awsData={awsData} />
+          </div>
+        )}
+
+        {/* Map View */}
+        {(pafData || awsData) && !isDropdownOpen && (
+          <div className="mb-8">
+            <AddressMap pins={pins} isLoading={isGeocodingLoading} />
           </div>
         )}
 

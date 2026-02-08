@@ -24,6 +24,30 @@ export class FrontendConstruct extends Construct {
   constructor(scope: Construct, id: string, props: FrontendConstructProps) {
     super(scope, id);
 
+    // Custom response headers policy allowing OpenStreetMap tiles and Nominatim geocoding
+    const responseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeaders', {
+      responseHeadersPolicyName: `RAS-${props.environment}-SecurityHeaders`,
+      securityHeadersBehavior: {
+        contentTypeOptions: { override: true },
+        frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+        xssProtection: { protection: true, modeBlock: true, override: true },
+        strictTransportSecurity: {
+          accessControlMaxAge: Duration.seconds(63072000),
+          includeSubdomains: true,
+          override: true,
+        },
+        contentSecurityPolicy: {
+          contentSecurityPolicy: [
+            "default-src 'self'",
+            "img-src 'self' data: *.tile.openstreetmap.org",
+            "connect-src 'self' *.execute-api.ap-southeast-2.amazonaws.com nominatim.openstreetmap.org",
+            "style-src 'self' 'unsafe-inline'",
+          ].join('; '),
+          override: true,
+        },
+      },
+    });
+
     // Use AWS Solutions Construct for CloudFront + S3 pattern
     const cloudfrontToS3 = new CloudFrontToS3(this, 'CloudFrontToS3', {
       bucketProps: {
@@ -56,11 +80,18 @@ export class FrontendConstruct extends Construct {
           },
         ],
       },
-      insertHttpSecurityHeaders: true,
+      insertHttpSecurityHeaders: false,
     });
 
     this.cloudFrontDistribution = cloudfrontToS3.cloudFrontWebDistribution;
     this.s3Bucket = cloudfrontToS3.s3BucketInterface as s3.Bucket;
+
+    // Attach response headers policy to the default cache behavior via CFN override
+    const cfnDistribution = this.cloudFrontDistribution.node.defaultChild as cloudfront.CfnDistribution;
+    cfnDistribution.addPropertyOverride(
+      'DistributionConfig.DefaultCacheBehavior.ResponseHeadersPolicyId',
+      responseHeadersPolicy.responseHeadersPolicyId,
+    );
 
     // Add bucket lifecycle rule to clean up old versions (if versioning enabled in future)
     this.s3Bucket.addLifecycleRule({
