@@ -4,15 +4,22 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PafResultItem, AwsResultItem } from './ResultItem';
-import type { PafSearchResponse, LocationSuggestResponse } from '@/types';
+import { ErrorAlert } from '@/components/ui/error-alert';
+import { getErrorMessage } from '@/lib/error-handling';
+import type { PafSearchResponse, LocationSuggestResponse, PafAddressResult, LocationResult } from '@/types';
 
 interface ResultsDropdownProps {
   pafData: PafSearchResponse | undefined;
   awsData: LocationSuggestResponse | undefined;
   isPafLoading: boolean;
   isAwsLoading: boolean;
+  pafError: Error | null;
+  awsError: Error | null;
   isOpen: boolean;
   onClose: () => void;
+  selectedIndex: number;
+  focusedSource: 'paf' | 'aws';
+  onResultSelect: (result: PafAddressResult | LocationResult, source: 'paf' | 'aws') => void;
 }
 
 export function ResultsDropdown({
@@ -20,10 +27,16 @@ export function ResultsDropdown({
   awsData,
   isPafLoading,
   isAwsLoading,
+  pafError,
+  awsError,
   isOpen,
   onClose,
+  selectedIndex,
+  focusedSource,
+  onResultSelect,
 }: ResultsDropdownProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const selectedItemRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -38,24 +51,42 @@ export function ResultsDropdown({
     }
   }, [isOpen, onClose]);
 
+  // Scroll selected item into view
+  useEffect(() => {
+    if (selectedItemRef.current) {
+      selectedItemRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [selectedIndex, focusedSource]);
+
   if (!isOpen) return null;
 
   const hasPafResults = pafData && pafData.results.length > 0;
   const hasAwsResults = awsData && awsData.results.length > 0;
+  const showPafError = pafError && !isPafLoading;
+  const showAwsError = awsError && !isAwsLoading;
 
   return (
     <Card
       ref={dropdownRef}
       className="absolute top-full left-0 right-0 mt-2 z-50 max-h-[500px] overflow-hidden shadow-lg"
+      role="listbox"
+      id="address-search-results"
     >
       {/* Desktop: Two-column layout */}
       <div className="hidden md:grid md:grid-cols-2">
         {/* PAF Column */}
         <div className="border-r">
           <div className="p-3 bg-muted/50 border-b">
-            <h3 className="font-semibold text-sm">PAF Results</h3>
+            <h3 className="font-semibold text-sm">
+              PAF Results
+              {hasPafResults && ` (${pafData.results.length})`}
+            </h3>
           </div>
           <ScrollArea className="h-[400px]">
+            {showPafError && <ErrorAlert message={getErrorMessage(pafError)} />}
             {isPafLoading ? (
               <div className="p-3 space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -67,22 +98,35 @@ export function ResultsDropdown({
               </div>
             ) : hasPafResults ? (
               <div>
-                {pafData.results.map((result) => (
-                  <PafResultItem key={result.id} result={result} />
-                ))}
+                {pafData.results.map((result, index) => {
+                  const isSelected = focusedSource === 'paf' && selectedIndex === index;
+                  return (
+                    <div key={result.id} ref={isSelected ? selectedItemRef : undefined}>
+                      <PafResultItem
+                        result={result}
+                        isSelected={isSelected}
+                        onClick={() => onResultSelect(result, 'paf')}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            ) : (
+            ) : !showPafError ? (
               <div className="p-6 text-center text-sm text-muted-foreground">No results found</div>
-            )}
+            ) : null}
           </ScrollArea>
         </div>
 
         {/* AWS Column */}
         <div>
           <div className="p-3 bg-muted/50 border-b">
-            <h3 className="font-semibold text-sm">AWS Location Results</h3>
+            <h3 className="font-semibold text-sm">
+              AWS Location Results
+              {hasAwsResults && ` (${awsData.results.length})`}
+            </h3>
           </div>
           <ScrollArea className="h-[400px]">
+            {showAwsError && <ErrorAlert message={getErrorMessage(awsError)} />}
             {isAwsLoading ? (
               <div className="p-3 space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -94,13 +138,22 @@ export function ResultsDropdown({
               </div>
             ) : hasAwsResults ? (
               <div>
-                {awsData.results.map((result) => (
-                  <AwsResultItem key={result.placeId} result={result} />
-                ))}
+                {awsData.results.map((result, index) => {
+                  const isSelected = focusedSource === 'aws' && selectedIndex === index;
+                  return (
+                    <div key={result.placeId} ref={isSelected ? selectedItemRef : undefined}>
+                      <AwsResultItem
+                        result={result}
+                        isSelected={isSelected}
+                        onClick={() => onResultSelect(result, 'aws')}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            ) : (
+            ) : !showAwsError ? (
               <div className="p-6 text-center text-sm text-muted-foreground">No results found</div>
-            )}
+            ) : null}
           </ScrollArea>
         </div>
       </div>
@@ -109,14 +162,15 @@ export function ResultsDropdown({
       <Tabs defaultValue="paf" className="md:hidden">
         <TabsList className="w-full rounded-none border-b">
           <TabsTrigger value="paf" className="flex-1">
-            PAF Results
+            PAF Results {hasPafResults && `(${pafData.results.length})`}
           </TabsTrigger>
           <TabsTrigger value="aws" className="flex-1">
-            AWS Results
+            AWS Results {hasAwsResults && `(${awsData.results.length})`}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="paf" className="mt-0">
           <ScrollArea className="h-[400px]">
+            {showPafError && <ErrorAlert message={getErrorMessage(pafError)} />}
             {isPafLoading ? (
               <div className="p-3 space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -128,17 +182,27 @@ export function ResultsDropdown({
               </div>
             ) : hasPafResults ? (
               <div>
-                {pafData.results.map((result) => (
-                  <PafResultItem key={result.id} result={result} />
-                ))}
+                {pafData.results.map((result, index) => {
+                  const isSelected = focusedSource === 'paf' && selectedIndex === index;
+                  return (
+                    <div key={result.id} ref={isSelected ? selectedItemRef : undefined}>
+                      <PafResultItem
+                        result={result}
+                        isSelected={isSelected}
+                        onClick={() => onResultSelect(result, 'paf')}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            ) : (
+            ) : !showPafError ? (
               <div className="p-6 text-center text-sm text-muted-foreground">No results found</div>
-            )}
+            ) : null}
           </ScrollArea>
         </TabsContent>
         <TabsContent value="aws" className="mt-0">
           <ScrollArea className="h-[400px]">
+            {showAwsError && <ErrorAlert message={getErrorMessage(awsError)} />}
             {isAwsLoading ? (
               <div className="p-3 space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -150,13 +214,22 @@ export function ResultsDropdown({
               </div>
             ) : hasAwsResults ? (
               <div>
-                {awsData.results.map((result) => (
-                  <AwsResultItem key={result.placeId} result={result} />
-                ))}
+                {awsData.results.map((result, index) => {
+                  const isSelected = focusedSource === 'aws' && selectedIndex === index;
+                  return (
+                    <div key={result.placeId} ref={isSelected ? selectedItemRef : undefined}>
+                      <AwsResultItem
+                        result={result}
+                        isSelected={isSelected}
+                        onClick={() => onResultSelect(result, 'aws')}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            ) : (
+            ) : !showAwsError ? (
               <div className="p-6 text-center text-sm text-muted-foreground">No results found</div>
-            )}
+            ) : null}
           </ScrollArea>
         </TabsContent>
       </Tabs>

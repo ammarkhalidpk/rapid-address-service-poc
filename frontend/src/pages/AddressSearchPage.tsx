@@ -6,15 +6,18 @@ import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAddressSearch } from '@/hooks/useAddressSearch';
 import type { AnalyticsEntry } from '@/types/analytics.types';
+import type { PafAddressResult, LocationResult } from '@/types';
 
 export function AddressSearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsEntry[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [focusedSource, setFocusedSource] = useState<'paf' | 'aws'>('paf');
 
   const debouncedQuery = useDebounce(searchQuery, 300);
 
-  const { pafData, awsData, isPafLoading, isAwsLoading, isAnyLoading } = useAddressSearch({
+  const { pafData, awsData, isPafLoading, isAwsLoading, pafError, awsError, isAnyLoading } = useAddressSearch({
     query: debouncedQuery,
     limit: 10,
   });
@@ -25,7 +28,14 @@ export function AddressSearchPage() {
       setIsDropdownOpen(true);
     } else {
       setIsDropdownOpen(false);
+      setSelectedIndex(-1);
     }
+  }, [debouncedQuery]);
+
+  // Reset selection when query changes
+  useEffect(() => {
+    setSelectedIndex(-1);
+    setFocusedSource('paf');
   }, [debouncedQuery]);
 
   // Capture analytics when both queries complete successfully
@@ -52,6 +62,94 @@ export function AddressSearchPage() {
     }
   }, [pafData, awsData, debouncedQuery]);
 
+  // Keyboard navigation handlers
+  const navigateDown = () => {
+    const maxIndex = focusedSource === 'paf'
+      ? (pafData?.results.length || 0) - 1
+      : (awsData?.results.length || 0) - 1;
+
+    if (maxIndex >= 0) {
+      setSelectedIndex((prev) => (prev < maxIndex ? prev + 1 : 0));
+    }
+  };
+
+  const navigateUp = () => {
+    const maxIndex = focusedSource === 'paf'
+      ? (pafData?.results.length || 0) - 1
+      : (awsData?.results.length || 0) - 1;
+
+    if (maxIndex >= 0) {
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : maxIndex));
+    }
+  };
+
+  const switchColumn = () => {
+    const hasResults = focusedSource === 'paf'
+      ? (awsData?.results.length || 0) > 0
+      : (pafData?.results.length || 0) > 0;
+
+    if (hasResults) {
+      setFocusedSource((prev) => (prev === 'paf' ? 'aws' : 'paf'));
+      setSelectedIndex(0);
+    }
+  };
+
+  const selectCurrentResult = () => {
+    if (selectedIndex < 0) return;
+
+    const result = focusedSource === 'paf'
+      ? pafData?.results[selectedIndex]
+      : awsData?.results[selectedIndex];
+
+    if (result) {
+      handleResultSelect(result, focusedSource);
+    }
+  };
+
+  const closeDropdown = () => {
+    setIsDropdownOpen(false);
+    setSelectedIndex(-1);
+  };
+
+  const handleResultSelect = (result: PafAddressResult | LocationResult, source: 'paf' | 'aws') => {
+    console.log('Selected result:', result, 'from', source);
+    // TODO: Future enhancement - populate form fields with selected address
+    closeDropdown();
+  };
+
+  // Keyboard event listener
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          navigateDown();
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          navigateUp();
+          break;
+        case 'Tab':
+          e.preventDefault();
+          switchColumn();
+          break;
+        case 'Enter':
+          e.preventDefault();
+          selectCurrentResult();
+          break;
+        case 'Escape':
+          e.preventDefault();
+          closeDropdown();
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isDropdownOpen, selectedIndex, focusedSource, pafData, awsData]);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -71,14 +169,20 @@ export function AddressSearchPage() {
               onChange={setSearchQuery}
               isLoading={isAnyLoading}
               placeholder="Search Australian addresses..."
+              isDropdownOpen={isDropdownOpen}
             />
             <ResultsDropdown
               pafData={pafData}
               awsData={awsData}
               isPafLoading={isPafLoading}
               isAwsLoading={isAwsLoading}
+              pafError={pafError}
+              awsError={awsError}
               isOpen={isDropdownOpen}
-              onClose={() => setIsDropdownOpen(false)}
+              onClose={closeDropdown}
+              selectedIndex={selectedIndex}
+              focusedSource={focusedSource}
+              onResultSelect={handleResultSelect}
             />
           </div>
           {debouncedQuery.length > 0 && debouncedQuery.length < 3 && (
