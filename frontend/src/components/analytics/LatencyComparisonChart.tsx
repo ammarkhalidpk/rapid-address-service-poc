@@ -28,9 +28,13 @@ export function LatencyComparisonChart({ data }: LatencyComparisonChartProps) {
     ...chartData.flatMap((entry) => [entry.pafLatency, entry.awsLatency])
   );
 
-  const chartHeight = 300;
-  const chartWidth = 100;
-  const barWidth = chartWidth / (chartData.length * 2 + chartData.length); // Space for 2 bars + gap per entry
+  const barHeight = 14;
+  const rowGap = 8;
+  const rowHeight = barHeight * 2 + rowGap;
+  const chartLeft = 45;
+  const chartRight = 45;
+  const totalWidth = 500;
+  const barAreaWidth = totalWidth - chartLeft - chartRight;
 
   return (
     <Card>
@@ -51,100 +55,98 @@ export function LatencyComparisonChart({ data }: LatencyComparisonChartProps) {
             </div>
           </div>
 
-          {/* Chart */}
-          <div className="relative w-full overflow-x-auto">
+          {/* Horizontal Bar Chart */}
+          <div className="w-full overflow-x-auto">
             <svg
-              viewBox={`0 0 ${chartWidth} ${chartHeight + 40}`}
-              className="w-full h-[300px]"
+              viewBox={`0 0 ${totalWidth} ${chartData.length * (rowHeight + 12) + 30}`}
+              className="w-full"
               preserveAspectRatio="xMidYMid meet"
-              style={{ minWidth: `${chartData.length * 80}px` }}
             >
-              {/* Y-axis labels */}
-              <text x="2" y="15" fontSize="10" fill="currentColor" className="text-muted-foreground">
-                {maxLatency}ms
-              </text>
-              <text x="2" y={chartHeight / 2} fontSize="10" fill="currentColor" className="text-muted-foreground">
-                {Math.round(maxLatency / 2)}ms
-              </text>
-              <text x="2" y={chartHeight - 5} fontSize="10" fill="currentColor" className="text-muted-foreground">
+              {/* X-axis labels */}
+              <text x={chartLeft} y={12} fontSize="9" fill="currentColor" className="text-muted-foreground">
                 0ms
               </text>
+              <text x={chartLeft + barAreaWidth / 2} y={12} fontSize="9" textAnchor="middle" fill="currentColor" className="text-muted-foreground">
+                {Math.round(maxLatency / 2)}ms
+              </text>
+              <text x={chartLeft + barAreaWidth} y={12} fontSize="9" textAnchor="end" fill="currentColor" className="text-muted-foreground">
+                {maxLatency}ms
+              </text>
+
+              {/* Grid lines */}
+              {[0, 0.25, 0.5, 0.75, 1].map((pct) => (
+                <line
+                  key={pct}
+                  x1={chartLeft + barAreaWidth * pct}
+                  y1={18}
+                  x2={chartLeft + barAreaWidth * pct}
+                  y2={chartData.length * (rowHeight + 12) + 20}
+                  stroke="currentColor"
+                  strokeWidth="0.5"
+                  className="text-muted-foreground opacity-20"
+                />
+              ))}
 
               {/* Bars */}
               {chartData.map((entry, index) => {
-                const x = (index * (barWidth * 3)) + barWidth;
-                const pafHeight = (entry.pafLatency / maxLatency) * (chartHeight - 40);
-                const awsHeight = (entry.awsLatency / maxLatency) * (chartHeight - 40);
-                const pafY = chartHeight - pafHeight;
-                const awsY = chartHeight - awsHeight;
+                const y = index * (rowHeight + 12) + 24;
+                const pafWidth = (entry.pafLatency / maxLatency) * barAreaWidth;
+                const awsWidth = (entry.awsLatency / maxLatency) * barAreaWidth;
 
                 return (
                   <g key={entry.timestamp}>
-                    {/* PAF bar */}
-                    <rect
-                      x={`${x}%`}
-                      y={pafY}
-                      width={`${barWidth * 0.8}%`}
-                      height={pafHeight}
-                      fill="rgb(59, 130, 246)"
-                      rx="2"
-                    />
+                    {/* Row label */}
                     <text
-                      x={`${x + barWidth * 0.4}%`}
-                      y={pafY - 5}
-                      fontSize="9"
-                      textAnchor="middle"
-                      fill="currentColor"
-                      className="text-muted-foreground"
-                    >
-                      {entry.pafLatency}
-                    </text>
-
-                    {/* AWS bar */}
-                    <rect
-                      x={`${x + barWidth}%`}
-                      y={awsY}
-                      width={`${barWidth * 0.8}%`}
-                      height={awsHeight}
-                      fill="rgb(249, 115, 22)"
-                      rx="2"
-                    />
-                    <text
-                      x={`${x + barWidth * 1.4}%`}
-                      y={awsY - 5}
-                      fontSize="9"
-                      textAnchor="middle"
-                      fill="currentColor"
-                      className="text-muted-foreground"
-                    >
-                      {entry.awsLatency}
-                    </text>
-
-                    {/* X-axis label (search index) */}
-                    <text
-                      x={`${x + barWidth}%`}
-                      y={chartHeight + 20}
+                      x={chartLeft - 6}
+                      y={y + rowHeight / 2 + 2}
                       fontSize="10"
-                      textAnchor="middle"
+                      textAnchor="end"
                       fill="currentColor"
                       className="text-muted-foreground"
                     >
                       #{index + 1}
                     </text>
+
+                    {/* PAF bar */}
+                    <rect
+                      x={chartLeft}
+                      y={y}
+                      width={Math.max(pafWidth, 2)}
+                      height={barHeight}
+                      fill="rgb(59, 130, 246)"
+                      rx="2"
+                    />
+                    <text
+                      x={chartLeft + pafWidth + 4}
+                      y={y + barHeight - 3}
+                      fontSize="9"
+                      fill="currentColor"
+                      className="text-muted-foreground"
+                    >
+                      {entry.pafLatency}ms
+                    </text>
+
+                    {/* AWS bar */}
+                    <rect
+                      x={chartLeft}
+                      y={y + barHeight + 2}
+                      width={Math.max(awsWidth, 2)}
+                      height={barHeight}
+                      fill="rgb(249, 115, 22)"
+                      rx="2"
+                    />
+                    <text
+                      x={chartLeft + awsWidth + 4}
+                      y={y + barHeight * 2}
+                      fontSize="9"
+                      fill="currentColor"
+                      className="text-muted-foreground"
+                    >
+                      {entry.awsLatency}ms
+                    </text>
                   </g>
                 );
               })}
-
-              {/* Baseline */}
-              <line
-                x1="0"
-                y1={chartHeight}
-                x2="100%"
-                y2={chartHeight}
-                stroke="currentColor"
-                strokeWidth="1"
-                className="text-muted-foreground opacity-30"
-              />
             </svg>
           </div>
         </div>
