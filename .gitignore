@@ -38,3 +38,15 @@ coverage/
 .env.local
 .env.*.local
 apfdata.db
+
+# Frontend
+frontend/node_modules
+frontend/.env
+frontend/.env.development
+frontend/.env.production
+frontend/dist
+frontend/build
+
+# Export and reports
+export/
+qa-report-*.md
