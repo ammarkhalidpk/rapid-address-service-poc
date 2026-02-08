@@ -55,7 +55,8 @@ export function LatencyComparisonChart({ data }: LatencyComparisonChartProps) {
           <div className="relative w-full overflow-x-auto">
             <svg
               viewBox={`0 0 ${chartWidth} ${chartHeight + 40}`}
-              className="w-full"
+              className="w-full h-[300px]"
+              preserveAspectRatio="xMidYMid meet"
               style={{ minWidth: `${chartData.length * 80}px` }}
             >
               {/* Y-axis labels */}
