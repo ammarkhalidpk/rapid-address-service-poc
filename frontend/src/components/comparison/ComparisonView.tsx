@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PafResultList, AwsResultList } from './AddressResultList';
+import { ComparisonMetrics } from './ComparisonMetrics';
 import type { PafSearchResponse, LocationSuggestResponse } from '@/types';
 
 interface ComparisonViewProps {
@@ -14,9 +15,16 @@ export function ComparisonView({ pafData, awsData }: ComparisonViewProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* PAF Results Card */}
-      <Card>
+    <div className="space-y-6">
+      {/* Only show comparison metrics when both datasets are available */}
+      {pafData && awsData && (
+        <ComparisonMetrics pafData={pafData} awsData={awsData} />
+      )}
+
+      {/* Two-column result display */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* PAF Results Card */}
+        <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">PAF Database</CardTitle>
@@ -67,6 +75,7 @@ export function ComparisonView({ pafData, awsData }: ComparisonViewProps) {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
